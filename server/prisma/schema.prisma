@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleUtilisateur {
+  ADMIN
+  FORMATEUR
+  APPRENANT
+}
+
+enum StatutFormation {
+  BROUILLON
+  OUVERTE
+  TERMINEE
+}
+
+enum StatutInscription {
+  EN_ATTENTE
+  EN_COURS
+  VALIDEE
+  ANNULEE
+}
+
+enum ModePaiement {
+  ORANGE_MONEY
+  MTN_MONEY
+  CARTE
+  ESPECES
+  VIREMENT
+  SIMULATION
+}
+
+enum StatutPaiement {
+  EN_ATTENTE // En attente de confirmation
+  EN_COURS // Paiement en cours de traitement
+  VALIDE // Paiement validé
+  ANNULE // Paiement annulé
+  ECHEC // Échec du paiement
+}
+
+enum StatutAttestation {
+  GENEREE
+  ENVOYEE
+  TELECHARGEE
+}
+
+model Utilisateur {
+  id         String          @id @default(auto()) @map("_id") @db.ObjectId
+  nom        String
+  prenom     String
+  email      String          @unique
+  telephone  String?
+  motDePasse String
+  role       RoleUtilisateur @default(APPRENANT)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  inscriptions Inscription[]
+  paiements    Paiement[]
+  attestations Attestation[]
+  formations   Formation[]   @relation("FormateurEnCharge")
+
+  @@map("utilisateurs")
+}
+
+model Formation {
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  titre       String
+  description String
+  prix        Float
+  dateDebut   DateTime
+  dateFin     DateTime
+  statut      StatutFormation @default(OUVERTE)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  formateur    Utilisateur?  @relation("FormateurEnCharge", fields: [formateurId], references: [id])
+  formateurId  String?       @db.ObjectId
+  inscriptions Inscription[]
+  attestations Attestation[]
+  paiements    Paiement[]
+
+  @@map("formations")
+}
+
+model Inscription {
+  id              String            @id @default(auto()) @map("_id") @db.ObjectId
+  dateInscription DateTime          @default(now())
+  statut          StatutInscription @default(EN_ATTENTE)
+
+  // Relations
+  utilisateur   Utilisateur  @relation(fields: [utilisateurId], references: [id])
+  utilisateurId String       @db.ObjectId
+  formation     Formation    @relation(fields: [formationId], references: [id])
+  formationId   String       @db.ObjectId
+  paiement      Paiement?    @relation(fields: [paiementId], references: [id])
+  paiementId    String?      @db.ObjectId
+  attestation   Attestation? @relation("AttestationInscription")
+
+  @@map("inscriptions")
+}
+
+model Paiement {
+  id           String         @id @default(auto()) @map("_id") @db.ObjectId
+  reference    String         @unique
+  montant      Float
+  mode         ModePaiement
+  statut       StatutPaiement @default(EN_ATTENTE)
+  datePaiement DateTime       @default(now())
+  telephone    String // Numéro de téléphone de l'utilisateur
+  operateur    String? // Opérateur (MTN, Orange, etc.)
+  code         String? // Code de transaction
+  commentaire  String? // Commentaire supplémentaire
+
+  // Champs Monetbil
+  monetbilTransactionId String? // ID de transaction Monetbil
+  monetbilPaymentUrl    String? // URL de paiement Monetbil
+  monetbilStatus        String? // Statut retourné par Monetbil
+  monetbilPhone         String? // Numéro utilisé pour le paiement
+  monetbilOperator      String? // Opérateur retourné par Monetbil
+
+  // Relations
+  utilisateur   Utilisateur   @relation(fields: [utilisateurId], references: [id])
+  utilisateurId String        @db.ObjectId
+  formation     Formation     @relation(fields: [formationId], references: [id])
+  formationId   String        @db.ObjectId
+  inscriptions  Inscription[]
+
+  @@map("paiements")
+}
+
+model Attestation {
+  id                 String            @id @default(auto()) @map("_id") @db.ObjectId
+  numero             String            @unique
+  urlPdf             String
+  statut             StatutAttestation @default(GENEREE)
+  dateEmission       DateTime          @default(now())
+  dateTelechargement DateTime?
+
+  utilisateur   Utilisateur @relation(fields: [utilisateurId], references: [id])
+  utilisateurId String      @db.ObjectId
+  formation     Formation   @relation(fields: [formationId], references: [id])
+  formationId   String      @db.ObjectId
+  inscription   Inscription @relation("AttestationInscription", fields: [inscriptionId], references: [id])
+  inscriptionId String      @unique @db.ObjectId
+
+  @@map("attestations")
+}
+
+model OTP {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String
+  code      String
+  expiresAt DateTime
+  validated Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("otps")
+}

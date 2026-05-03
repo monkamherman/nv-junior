@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hors-ligne - CENTIC</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #2563EB 0%, #1e40af 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            max-width: 500px;
+        }
+        .logo {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 2rem;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #2563EB;
+            font-size: 1.5rem;
+        }
+        h1 {
+            margin: 1rem 0;
+            font-size: 2rem;
+        }
+        p {
+            margin: 1rem 0;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+        .retry-btn {
+            background: white;
+            color: #2563EB;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 2rem;
+            transition: transform 0.2s;
+        }
+        .retry-btn:hover {
+            transform: translateY(-2px);
+        }
+        .status {
+            margin-top: 2rem;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">CENTIC</div>
+        <h1>Vous êtes hors-ligne</h1>
+        <p>
+            Certaines ressources de CENTIC ne sont pas disponibles sans connexion Internet.
+            Les pages déjà visitées restent accessibles.
+        </p>
+        <button class="retry-btn" onclick="window.location.reload()">
+            Réessayer
+        </button>
+        <div class="status" id="status">
+            Vérification de la connexion...
+        </div>
+    </div>
+
+    <script>
+        // Vérifier le statut de connexion
+        function updateStatus() {
+            const status = document.getElementById('status');
+            if (navigator.onLine) {
+                status.textContent = 'Connexion rétablie ! Actualisation...';
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                status.textContent = 'Aucune connexion Internet détectée';
+            }
+        }
+
+        updateStatus();
+        window.addEventListener('online', updateStatus);
+        window.addEventListener('offline', updateStatus);
+
+        // Vérifier périodiquement la connexion
+        setInterval(() => {
+            if (navigator.onLine) {
+                fetch('/', { method: 'HEAD' })
+                    .then(() => window.location.reload())
+                    .catch(() => {});
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

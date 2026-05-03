@@ -1,0 +1,90 @@
+{
+  "name": "CENTIC - Centre d'Éducation aux Outils de NTIC",
+  "short_name": "CENTIC",
+  "description": "Centre d'Éducation aux Outils de NTIC. Promotion de l'accès et de l'utilisation des Nouvelles Technologies dans la région du Septentrion au Cameroun.",
+  "start_url": "/?source=pwa",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563EB",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "fr",
+  "dir": "ltr",
+  "categories": ["education", "technology", "nonprofit"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/logo.jpg",
+      "sizes": "72x72",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "96x96",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "128x128",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "144x144",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "152x152",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "384x384",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Formations",
+      "short_name": "Formations",
+      "description": "Découvrez nos formations aux métiers du numérique",
+      "url": "/formations?source=pwa",
+      "icons": [{ "src": "/logo.jpg", "sizes": "96x96" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/img1.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Page d'accueil de CENTIC"
+    },
+    {
+      "src": "/img1.jpg",
+      "sizes": "750x1334",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Vue mobile de CENTIC"
+    }
+  ]
+}
