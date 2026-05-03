@@ -41,9 +41,11 @@ export const verifierEligibilite = async (
   formationId: string
 ): Promise<EligibiliteResponse> => {
   try {
-    const response = await api.get<{ eligible: boolean; attestation?: Attestation; reason?: string }>(
-      `/api/attestations/verifier-eligibilite/${formationId}`
-    );
+    const response = await api.get<{
+      eligible: boolean;
+      attestation?: Attestation;
+      reason?: string;
+    }>(`/api/attestations/verifier-eligibilite/${formationId}`);
     return response.data;
   } catch (error) {
     captureError(error, 'attestations.eligibility');
@@ -68,8 +70,12 @@ export const genererAttestation = async (
 // Récupérer la liste des attestations de l'utilisateur
 export const getMesAttestations = async (): Promise<AttestationEtendue[]> => {
   try {
-    const response = await api.get<{ attestations: AttestationEtendue[] }>('/api/attestations');
-    return response.data.attestations;
+    const response = await api.get<{
+      success: boolean;
+      message?: string;
+      data: { attestations: AttestationEtendue[] };
+    }>('/api/attestations');
+    return response.data.data.attestations;
   } catch (error) {
     captureError(error, 'attestations.list');
     throw error;

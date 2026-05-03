@@ -41,11 +41,7 @@ export const getMesAttestations = async (req: Request, res: Response) => {
       },
     });
 
-    return sendSuccess(
-      res,
-      { attestations },
-      "Attestations récupérées",
-    );
+    return sendSuccess(res, { attestations }, "Attestations récupérées");
   } catch (error) {
     console.error("Erreur lors de la récupération des attestations:", error);
     const errorMessage =
@@ -65,7 +61,7 @@ export const getMesAttestations = async (req: Request, res: Response) => {
  */
 export const verifierEligibiliteAttestation = async (
   req: Request,
-  res: Response
+  res: Response,
 ) => {
   try {
     if (!req.user) {
@@ -101,14 +97,14 @@ export const verifierEligibiliteAttestation = async (
       }
 
       // Si la formation n'est pas terminée
-      const maintenant = new Date();
-      const dateFinFormation = new Date(inscriptionValidee.formation.dateFin);
-      if (maintenant < dateFinFormation) {
-        return sendSuccess(res, {
-          eligible: false,
-          reason: `Formation en cours. Attestation disponible après le ${dateFinFormation.toLocaleDateString()}`,
-        });
-      }
+      // const maintenant = new Date();
+      // const dateFinFormation = new Date(inscriptionValidee.formation.dateFin);
+      // if (maintenant < dateFinFormation) {
+      //   return sendSuccess(res, {
+      //     eligible: false,
+      //     reason: `Formation en cours. Attestation disponible après le ${dateFinFormation.toLocaleDateString()}`,
+      //   });
+      // }
 
       // Si le paiement est fait mais l'attestation pas encore générée (cas rare)
       return sendSuccess(res, { eligible: true });
@@ -208,7 +204,7 @@ export const genererMonAttestation = async (req: Request, res: Response) => {
 
     if (inscription.attestation) {
       console.log(
-        "Attestation existe déjà - retour de l'attestation existante"
+        "Attestation existe déjà - retour de l'attestation existante",
       );
       return sendSuccess(
         res,
@@ -275,23 +271,23 @@ L'équipe Centic
 
       const emailResult = await sendMail(
         inscription.utilisateur.email,
-        emailContent
+        emailContent,
       );
 
       if (emailResult.success) {
         console.log(
-          `Email d'attestation envoyé avec succès à ${inscription.utilisateur.email}`
+          `Email d'attestation envoyé avec succès à ${inscription.utilisateur.email}`,
         );
       } else {
         console.error(
           `Erreur lors de l'envoi de l'email à ${inscription.utilisateur.email}:`,
-          emailResult.error
+          emailResult.error,
         );
       }
     } catch (emailError) {
       console.error(
         "Erreur lors de l'envoi de l'email d'attestation:",
-        emailError
+        emailError,
       );
       // Ne pas bloquer la réponse si l'email échoue
     }
@@ -321,7 +317,7 @@ L'équipe Centic
  */
 export const telechargerMonAttestation = async (
   req: Request,
-  res: Response
+  res: Response,
 ) => {
   try {
     if (!req.user) {
@@ -465,7 +461,7 @@ export const genererPdfAttestation = async (req: Request, res: Response) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="attestation-${attestation.numero}.pdf"`
+      `attachment; filename="attestation-${attestation.numero}.pdf"`,
     );
 
     // Si le service de certificat renvoie une URL, on récupère le fichier
@@ -473,7 +469,7 @@ export const genererPdfAttestation = async (req: Request, res: Response) => {
       const filePath = path.join(
         __dirname,
         "../../public",
-        certificateData.url.replace("/public", "")
+        certificateData.url.replace("/public", ""),
       );
 
       if (fs.existsSync(filePath)) {

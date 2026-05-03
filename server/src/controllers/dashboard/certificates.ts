@@ -1,13 +1,109 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient, StatutAttestation } from "@prisma/client";
 import { Request, Response } from "express";
 import { generateCertificate } from "../../services/certificateService";
 
 const prisma = new PrismaClient();
 
+export const getEligibleInscriptionsForCertificate = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const { search, formationId } = req.query as {
+      search?: string;
+      formationId?: string;
+    };
+
+    const eligible = await prisma.inscription.findMany({
+      where: {
+        ...(formationId ? { formationId } : {}),
+        paiement: {
+          statut: "VALIDE",
+        },
+        attestation: {
+          is: null,
+        },
+        ...(search
+          ? {
+              OR: [
+                {
+                  utilisateur: {
+                    prenom: {
+                      contains: search,
+                      mode: "insensitive",
+                    },
+                  },
+                },
+                {
+                  utilisateur: {
+                    nom: {
+                      contains: search,
+                      mode: "insensitive",
+                    },
+                  },
+                },
+                {
+                  utilisateur: {
+                    email: {
+                      contains: search,
+                      mode: "insensitive",
+                    },
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        utilisateur: {
+          select: {
+            id: true,
+            prenom: true,
+            nom: true,
+            email: true,
+          },
+        },
+        formation: {
+          select: {
+            id: true,
+            titre: true,
+            dateDebut: true,
+            dateFin: true,
+          },
+        },
+        paiement: {
+          select: {
+            id: true,
+            reference: true,
+            statut: true,
+            datePaiement: true,
+          },
+        },
+      },
+      orderBy: {
+        dateInscription: "desc",
+      },
+      take: 50,
+    });
+
+    return res.json({
+      data: eligible,
+    });
+  } catch (error) {
+    console.error(
+      "Erreur lors de la récupération des inscriptions éligibles:",
+      error,
+    );
+    return res
+      .status(500)
+      .json({ error: "Erreur lors de la récupération des inscriptions" });
+  }
+};
+
 // Générer une nouvelle attestation
 export const generateCertificateForUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ) => {
   const { inscriptionId } = req.body;
 
@@ -80,7 +176,7 @@ export const getAllCertificates = async (req: Request, res: Response) => {
   try {
     const { startDate, endDate, statut } = req.query;
 
-    const where: Record<string, any> = {};
+    const where: Prisma.AttestationWhereInput = {};
 
     if (startDate && endDate) {
       where.dateEmission = {
@@ -89,8 +185,8 @@ export const getAllCertificates = async (req: Request, res: Response) => {
       };
     }
 
-    if (statut) {
-      where.statut = statut;
+    if (typeof statut === "string" && statut.length > 0) {
+      where.statut = statut as StatutAttestation;
     }
 
     const attestations = await prisma.attestation.findMany({

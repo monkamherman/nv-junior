@@ -32,7 +32,7 @@ type FormationWithFormateur = Prisma.FormationGetPayload<{
 
 export async function getFormations(
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> {
   try {
     const formations = await prisma.formation.findMany({
@@ -60,7 +60,7 @@ export async function getFormations(
 
 export async function getFormationById(
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> {
   const { id } = req.params;
   try {
@@ -96,7 +96,7 @@ export async function getFormationById(
 
 export async function getUserFormations(
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
 ) {
   try {
     if (!req.user) {
@@ -135,7 +135,7 @@ export async function getUserFormations(
         dateInscription: inscription.dateInscription.toISOString(),
         statutPaiement: inscription.paiement?.statut || "EN_ATTENTE",
         montantPaiement: inscription.paiement?.montant || 0,
-      })
+      }),
     );
 
     res.json(formations);
@@ -209,7 +209,7 @@ export async function createFormation(req: Request, res: Response) {
     console.error("ERREUR lors de la création de la formation:", error);
     console.error(
       "Détails de l'erreur:",
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
 
     // Gestion spécifique des erreurs Prisma
@@ -234,27 +234,31 @@ export async function createFormation(req: Request, res: Response) {
 
 export async function updateFormation(req: Request, res: Response) {
   const { id } = req.params;
-  const { titre, description, prix, dateDebut, dateFin, formateurId } =
+  const { titre, description, prix, dateDebut, dateFin, formateurId, statut } =
     req.body;
   try {
     const formation = await prisma.formation.findUnique({ where: { id } });
     if (!formation) {
       return res.status(404).json({ message: "Formation non trouvée." });
     }
+
     const updatedFormation = await prisma.formation.update({
       where: { id },
       data: {
-        titre,
-        description,
-        prix,
-        dateDebut: new Date(dateDebut),
-        dateFin: new Date(dateFin),
-        formateurId,
+        titre: titre !== undefined ? titre : formation.titre,
+        description:
+          description !== undefined ? description : formation.description,
+        prix: prix !== undefined ? Number(prix) : formation.prix,
+        dateDebut: dateDebut ? new Date(dateDebut) : formation.dateDebut,
+        dateFin: dateFin ? new Date(dateFin) : formation.dateFin,
+        formateurId:
+          formateurId !== undefined ? formateurId : formation.formateurId,
+        statut: statut !== undefined ? statut : formation.statut,
       },
     });
     res.json(updatedFormation);
   } catch (error) {
-    console.error(error);
+    console.error("Erreur lors de la mise à jour de la formation:", error);
     res
       .status(500)
       .json({ message: "Erreur lors de la mise à jour de la formation." });
@@ -268,10 +272,29 @@ export async function deleteFormation(req: Request, res: Response) {
     if (!formation) {
       return res.status(404).json({ message: "Formation non trouvée." });
     }
+
+    // Supprimer les enregistrements liés dans l'ordre inverse des relations
+    // 1. Supprimer les attestations liées
+    await prisma.attestation.deleteMany({
+      where: { formationId: id },
+    });
+
+    // 2. Supprimer les paiements liés
+    await prisma.paiement.deleteMany({
+      where: { formationId: id },
+    });
+
+    // 3. Supprimer les inscriptions liées
+    await prisma.inscription.deleteMany({
+      where: { formationId: id },
+    });
+
+    // 4. Supprimer la formation
     await prisma.formation.delete({ where: { id } });
+
     res.json({ message: "Formation supprimée avec succès." });
   } catch (error) {
-    console.error(error);
+    console.error("Erreur lors de la suppression de la formation:", error);
     res
       .status(500)
       .json({ message: "Erreur lors de la suppression de la formation." });

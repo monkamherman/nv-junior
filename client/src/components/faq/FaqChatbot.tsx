@@ -57,9 +57,10 @@ function scoreEntry(input: string, entry: FaqEntry) {
 }
 
 function buildAnswer(input: string) {
-  const ranked = FAQ_ENTRIES
-    .map((entry) => ({ entry, score: scoreEntry(input, entry) }))
-    .sort((a, b) => b.score - a.score);
+  const ranked = FAQ_ENTRIES.map((entry) => ({
+    entry,
+    score: scoreEntry(input, entry),
+  })).sort((a, b) => b.score - a.score);
 
   if (!ranked[0] || ranked[0].score === 0) {
     return "Je n'ai pas trouvé de réponse précise. Essayez avec des mots-clés comme paiement, attestation, connexion ou support.";
@@ -76,7 +77,7 @@ export function FaqChatbot() {
       id: 'welcome',
       role: 'bot',
       content:
-        "Je peux répondre aux questions fréquentes sur les paiements, attestations et connexions.",
+        'Je peux répondre aux questions fréquentes sur les paiements, attestations et connexions.',
     },
   ]);
 
@@ -102,7 +103,7 @@ export function FaqChatbot() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-16 right-10 z-50">
       {isOpen ? (
         <div className="w-[340px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
           <div className="flex items-center justify-between bg-slate-900 px-4 py-3 text-white">
@@ -163,7 +164,11 @@ export function FaqChatbot() {
               placeholder="Posez votre question"
               className="border-slate-300"
             />
-            <Button type="submit" size="icon" className="bg-sky-600 hover:bg-sky-700">
+            <Button
+              type="submit"
+              size="icon"
+              className="bg-sky-600 hover:bg-sky-700"
+            >
               <Send className="h-4 w-4" />
             </Button>
           </form>

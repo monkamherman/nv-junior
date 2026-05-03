@@ -9,7 +9,6 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AttestationButton } from '@/features/attestations/components/AttestationButton';
 
 // Import des hooks personnalisés
 import { useDeleteFormation, useFormations } from '../hooks/useFormations';
@@ -372,12 +371,6 @@ function FormationsListContent() {
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Supprimer</span>
                         </Button>
-
-                        <AttestationButton
-                          formationId={formation.id}
-                          formationPrix={formation.prix}
-                          className="h-8 w-8 p-0"
-                        />
                       </div>
                     </TableCell>
                   </TableRow>

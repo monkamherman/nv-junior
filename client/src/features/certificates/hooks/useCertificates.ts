@@ -7,7 +7,7 @@ export interface Certificate {
   id: string;
   dateEmission: string;
   statut: 'GENEREE' | 'ENVOYEE' | 'TELECHARGEE';
-  url: string;
+  urlPdf: string;
   inscription: {
     id: string;
     utilisateur: {
@@ -25,11 +25,52 @@ export interface Certificate {
   };
 }
 
+export interface EligibleInscriptionForCertificate {
+  id: string;
+  dateInscription: string;
+  utilisateur: {
+    id: string;
+    prenom: string;
+    nom: string;
+    email: string;
+  };
+  formation: {
+    id: string;
+    titre: string;
+    dateDebut: string;
+    dateFin: string;
+  };
+  paiement: {
+    id: string;
+    reference: string;
+    statut: 'VALIDE';
+    datePaiement: string;
+  };
+}
+
 export const useCertificates = (filters = {}) => {
   return useQuery({
     queryKey: [CERTIFICATES_QUERY_KEY, filters],
     queryFn: () =>
       apiGet<Certificate[]>('/api/dashboard/certificates', { params: filters }),
+  });
+};
+
+export const useEligibleInscriptionsForCertificate = (
+  filters: {
+    search?: string;
+    formationId?: string;
+  } = {}
+) => {
+  return useQuery({
+    queryKey: ['certificates-eligible-inscriptions', filters],
+    queryFn: () =>
+      apiGet<{ data: EligibleInscriptionForCertificate[] }>(
+        '/api/dashboard/certificates/eligible-inscriptions',
+        {
+          params: filters,
+        }
+      ),
   });
 };
 

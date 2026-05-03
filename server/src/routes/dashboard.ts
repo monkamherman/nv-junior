@@ -32,16 +32,20 @@ router.patch("/payments/:id/status", paymentController.updatePaymentStatus);
 // Routes pour la gestion des attestations
 router.post(
   "/certificates/generate",
-  certificateController.generateCertificateForUser
+  certificateController.generateCertificateForUser,
+);
+router.get(
+  "/certificates/eligible-inscriptions",
+  certificateController.getEligibleInscriptionsForCertificate,
 );
 router.get("/certificates", certificateController.getAllCertificates);
 router.get(
   "/certificates/:id/download",
-  certificateController.downloadCertificate
+  certificateController.downloadCertificate,
 );
 router.post(
   "/certificates/:id/send",
-  certificateController.sendCertificateByEmail
+  certificateController.sendCertificateByEmail,
 );
 
 export default router;

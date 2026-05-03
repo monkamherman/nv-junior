@@ -4,11 +4,8 @@ import cors from "cors";
 import "dotenv/config";
 import { logger } from "env-var";
 import express from "express";
-import cacheControl from "express-cache-controller";
 import helmet from "helmet";
 import morgan from "morgan";
-import { randomUUID } from "node:crypto";
-import { ONE_HUNDRED, SIXTY } from "./core/constants";
 import { isAppError } from "./core/errors/app-error";
 import { sendError } from "./core/errors/http";
 import registerRoutes from "./routes";
@@ -53,12 +50,8 @@ const corsOptions: cors.CorsOptions = {
 
 // Middlewares critiques en premier
 app.use(cors(corsOptions));
-app.use((req, res, next) => {
-  res.locals.traceId = randomUUID();
-  next();
-});
+
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 // Configuration Helmet simplifiée pour le développement
 app.use(
@@ -86,44 +79,9 @@ setInterval(
   5 * 60 * 1000,
 );
 
-// Rate limiting simplifié
-app.use(async (req, res, next) => {
-  const ip = req.ip;
-  const now = Date.now();
-  const key = `rate_limit:${ip}`;
-  const limit = ONE_HUNDRED;
-  const windowMs = SIXTY * 1000;
-
-  const existing = rateLimitMap.get(key);
-
-  if (!existing || now > existing.resetTime) {
-    rateLimitMap.set(key, { count: 1, resetTime: now + windowMs });
-    return next();
-  }
-
-  if (existing.count >= limit) {
-    return res
-      .status(429)
-      .json({ error: "Trop de requêtes depuis cette adresse IP" });
-  }
-
-  existing.count++;
-  next();
-});
-
 // Middleware de compression
 app.use(compression());
 
-// Désactiver le cache pour les routes API (évite les réponses JSON servies depuis le cache navigateur)
-app.use((req, res, next) => {
-  if (req.path.startsWith("/api")) {
-    res.setHeader("Cache-Control", "no-store");
-  }
-  next();
-});
-
-// Middleware de contrôle du cache
-app.use(cacheControl({ maxAge: 86400 }));
 // Logging
 app.use(morgan("combined", { stream: morganStream }));
 

@@ -35,7 +35,7 @@ const createSchema = (otpSent: boolean) => {
         .max(100, "L'email ne peut pas dépasser 100 caractères"),
       telephone: z
         .string()
-        .min(10, 'Le numéro de téléphone doit contenir au moins 10 chiffres')
+        .min(9, 'Le numéro de téléphone doit contenir au moins 9 chiffres')
         .max(15, 'Le numéro de téléphone ne peut pas dépasser 15 chiffres')
         .regex(
           /^[0-9+\s-]+$/,
