@@ -8,6 +8,15 @@ import { generateCertificate } from "../../services/certificateService";
 
 const prisma = new PrismaClient();
 
+const isPdfFile = (filePath: string) => {
+  if (!fs.existsSync(filePath)) {
+    return false;
+  }
+
+  const header = fs.readFileSync(filePath, { encoding: "utf8" }).slice(0, 4);
+  return header === "%PDF";
+};
+
 export const getMesAttestations = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
@@ -379,12 +388,26 @@ export const telechargerMonAttestation = async (
       : attestation.urlPdf;
     const absolutePath = path.join(__dirname, "../../public", relativePath);
 
-    if (!fs.existsSync(absolutePath)) {
-      return sendError(
-        res,
-        404,
-        "ATTESTATION_FILE_NOT_FOUND",
-        "Fichier d'attestation introuvable",
+    if (!isPdfFile(absolutePath)) {
+      const certificateData = await generateCertificate(attestation.inscription);
+      const regeneratedPath = path.join(
+        __dirname,
+        "../../public",
+        certificateData.url.startsWith("/")
+          ? certificateData.url.substring(1)
+          : certificateData.url,
+      );
+
+      await prisma.attestation.update({
+        where: { id },
+        data: {
+          urlPdf: certificateData.url,
+        },
+      });
+
+      return res.download(
+        regeneratedPath,
+        `attestation-${attestation.numero}.pdf`,
       );
     }
 

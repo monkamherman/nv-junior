@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale/fr";
 import { createWriteStream } from "fs";
+import fs from "fs";
 import { join } from "path";
 import PDFDocument from "pdfkit";
 
@@ -46,6 +47,10 @@ export function generateCertificate(
       const fileName = `attestation-${inscription.id}-${Date.now()}.pdf`;
       const filePath = join(__dirname, "../../public/certificates", fileName);
       const fileUrl = `/certificates/${fileName}`;
+
+      fs.mkdirSync(join(__dirname, "../../public/certificates"), {
+        recursive: true,
+      });
 
       // Créer un flux d'écriture vers le fichier
       const stream = createWriteStream(filePath);
