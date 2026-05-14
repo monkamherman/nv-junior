@@ -3,6 +3,20 @@ import { captureError } from '@/lib/errors';
 
 export type PaiementMethod = 'orange' | 'mtn';
 
+export interface PaymentProgressStatus {
+  formationId: string;
+  formationPrice: number;
+  paidAmount: number;
+  remainingAmount: number;
+  isFullyPaid: boolean;
+  hasPendingPayment: boolean;
+  validatedPaymentsCount: number;
+  pendingPaymentsCount: number;
+  inscriptionStatus: 'EN_ATTENTE' | 'EN_COURS' | 'VALIDEE' | 'ANNULEE' | null;
+  formationEnded: boolean;
+  canGenerateAttestation: boolean;
+}
+
 export interface PaiementData {
   formationId: string;
   montant: number;
@@ -31,13 +45,20 @@ export interface PaiementRecord {
 
 interface CreatePaiementResponse {
   paiement: PaiementRecord;
+  paymentStatus?: PaymentProgressStatus;
   paymentUrl?: string;
   transactionId?: string;
   simulation?: boolean;
 }
 
+interface ApiEnvelope<T> {
+  success: boolean;
+  message?: string;
+  data: T;
+}
+
 class PaiementService {
-  async creerPaiement(data: PaiementData): Promise<PaiementRecord> {
+  async creerPaiement(data: PaiementData): Promise<CreatePaiementResponse> {
     const payload = {
       formationId: data.formationId,
       montant: data.montant,
@@ -46,11 +67,11 @@ class PaiementService {
       mode: data.methode === 'orange' ? 'ORANGE_MONEY' : 'MTN_MONEY',
     };
 
-    const response = await api.post<CreatePaiementResponse>(
+    const response = await api.post<ApiEnvelope<CreatePaiementResponse>>(
       '/api/paiements',
       payload
     );
-    return response.data.paiement;
+    return response.data.data;
   }
 
   async telechargerRecu(paiementId: string): Promise<void> {

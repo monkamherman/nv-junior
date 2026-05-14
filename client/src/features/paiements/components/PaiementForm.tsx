@@ -18,7 +18,6 @@ import { useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 import { paiementService } from '../services/paiementService';
 
-// Schéma de validation avec Zod
 const paiementSchema = z.object({
   mode: z.enum(['ORANGE_MONEY', 'MTN_MONEY']),
   telephone: z
@@ -47,7 +46,6 @@ export function PaiementForm({
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
 
-  // Récupérer la méthode de paiement depuis les paramètres d'URL
   const selectedMethod =
     (searchParams.get('method') as 'ORANGE_MONEY' | 'MTN_MONEY') ||
     'ORANGE_MONEY';
@@ -64,12 +62,14 @@ export function PaiementForm({
     try {
       setIsLoading(true);
 
-      const paiement = await paiementService.creerPaiement({
+      const result = await paiementService.creerPaiement({
         formationId,
         montant,
         methode: selectedMethod === 'ORANGE_MONEY' ? 'orange' : 'mtn',
         numeroTelephone: data.telephone,
       });
+
+      const paiement = result.paiement;
 
       toast({
         title: 'Paiement initié avec succès',
@@ -107,7 +107,6 @@ export function PaiementForm({
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          {/* Affichage de la méthode de paiement sélectionnée */}
           <div className="rounded-lg bg-muted p-4">
             <p className="mb-2 text-sm text-muted-foreground">
               Méthode de paiement
@@ -138,7 +137,6 @@ export function PaiementForm({
                       }
                       {...field}
                       onChange={(e) => {
-                        // N'autoriser que les chiffres
                         const value = e.target.value.replace(/\D/g, '');
                         field.onChange(value);
                       }}

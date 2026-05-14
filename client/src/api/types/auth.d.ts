@@ -1,4 +1,4 @@
-import { User } from '@/contexts/AuthContext';
+import type { User } from '@/contexts/AuthContext';
 
 declare module '@/api' {
   interface LoginResponse {

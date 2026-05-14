@@ -1,7 +1,7 @@
 import { PaymentHistory } from '@/components/profile/PaymentHistory';
+import { toast } from '@/hooks/use-toast';
 import { LoadingOverlay } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import {
   IconCalendar,
   IconCheck,
@@ -9,7 +9,6 @@ import {
   IconFileDownload,
   IconFileText,
   IconSchool,
-  IconX,
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useAttestations, useProfile } from '../hooks/useProfile';
@@ -57,10 +56,9 @@ export function ProfilePage() {
       "Génération et téléchargement de l'attestation:",
       attestationId
     );
-    notifications.show({
+    const loadingToast = toast({
       title: 'Génération',
-      message: 'Génération du certificat en cours...',
-      color: 'blue',
+      description: 'Génération du certificat en cours...',
     });
 
     try {
@@ -96,19 +94,19 @@ export function ProfilePage() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      notifications.show({
+      loadingToast.update({
+        id: loadingToast.id,
         title: 'Succès',
-        message: 'Certificat généré et téléchargé avec succès',
-        color: 'green',
-        icon: <IconCheck size={16} />,
+        description: 'Certificat généré et téléchargé avec succès',
+        variant: 'success',
       });
     } catch (error) {
       console.error('Erreur de génération/téléchargement:', error);
-      notifications.show({
+      loadingToast.update({
+        id: loadingToast.id,
         title: 'Erreur',
-        message: 'Erreur lors de la génération du certificat',
-        color: 'red',
-        icon: <IconX size={16} />,
+        description: 'Erreur lors de la génération du certificat',
+        variant: 'destructive',
       });
     }
   };

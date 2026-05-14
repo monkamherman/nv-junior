@@ -1,8 +1,8 @@
-import { axiosInstance } from '@/api/api.config';
 import { captureError, getErrorMessage } from '@/lib/errors';
 import {
   paiementService,
   type PaiementRecord,
+  type PaymentProgressStatus,
 } from '@/features/paiements/services/paiementService';
 import { useCallback, useState } from 'react';
 import { attestationService } from './PaymentService';
@@ -14,28 +14,22 @@ import type {
   PaymentSubmitResult,
 } from './types';
 
-/**
- * Hook personnalisé pour gérer le flux de génération d'attestation
- */
 export function useAttestationFlow(formationId: string) {
   const [status, setStatus] = useState<PaymentStatus>('idle');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [attestation, setAttestation] = useState<Attestation | null>(null);
-  const [eligibility, setEligibility] = useState<EligibiliteResult | null>(
-    null
-  );
+  const [eligibility, setEligibility] = useState<EligibiliteResult | null>(null);
   const [existingAttestationId, setExistingAttestationId] = useState<
     string | null
   >(null);
   const [lastPaiement, setLastPaiement] = useState<PaiementRecord | null>(null);
+  const [paymentProgress, setPaymentProgress] =
+    useState<PaymentProgressStatus | null>(null);
   const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
 
-  /**
-   * Vérifie l'éligibilité pour la formation
-   */
   const checkEligibility = useCallback(async () => {
-    if (!formationId) return false;
+    if (!formationId) return null;
 
     setIsCheckingEligibility(true);
     setError(null);
@@ -43,56 +37,62 @@ export function useAttestationFlow(formationId: string) {
     try {
       const result = await attestationService.checkEligibility(formationId);
       setEligibility(result);
+      setPaymentProgress(result.paymentStatus ?? null);
       if (result.attestation?.id) {
         setExistingAttestationId(result.attestation.id);
       } else {
         setExistingAttestationId(null);
       }
 
-      return result.eligible;
+      return result;
     } catch (err) {
       const normalizedError =
         err instanceof Error
           ? err
           : new Error("Impossible de vérifier l'éligibilité");
       setError(normalizedError);
-      return false;
+      return null;
     } finally {
       setIsCheckingEligibility(false);
     }
   }, [formationId]);
 
-  /**
-   * Ouvre le dialogue de paiement après vérification d'éligibilité
-   */
   const openPaymentDialog = useCallback(async () => {
     if (existingAttestationId) {
       await attestationService.downloadAttestation(existingAttestationId);
       return false;
     }
 
-    const eligible =
-      eligibility?.eligible !== undefined
-        ? eligibility.eligible
-        : await checkEligibility();
+    const result = eligibility ?? (await checkEligibility());
 
-    if (!eligible) {
+    if (!result) {
+      return false;
+    }
+
+    if (result.canGenerateAttestation) {
+      setStatus('generating_attestation');
+      const generatedAttestation = await attestationService.generateAttestation(
+        formationId
+      );
+      setAttestation(generatedAttestation);
+      setStatus('success');
+      return false;
+    }
+
+    if (result.canMakePayment === false || !result.eligible) {
       return false;
     }
 
     setIsDialogOpen(true);
     setStatus('dialog_open');
     return true;
-  }, [checkEligibility, eligibility, existingAttestationId]);
+  }, [checkEligibility, eligibility, existingAttestationId, formationId]);
 
   const closePaymentDialog = useCallback(() => {
     setIsDialogOpen(false);
     setStatus('idle');
   }, []);
 
-  /**
-   * Soumet le paiement et génère l'attestation
-   */
   const submitPayment = useCallback(
     async (paymentDetails: PaymentDetails): Promise<PaymentSubmitResult> => {
       if (!formationId) {
@@ -103,8 +103,7 @@ export function useAttestationFlow(formationId: string) {
       setError(null);
 
       try {
-        // 1. Sauvegarder le paiement en utilisant le service qui gère la transformation
-        const paiement = await paiementService.creerPaiement({
+        const paymentResponse = await paiementService.creerPaiement({
           formationId: paymentDetails.formationId,
           montant: paymentDetails.montant || paymentDetails.amount || 0,
           methode: (paymentDetails.methode || paymentDetails.method) as
@@ -113,24 +112,28 @@ export function useAttestationFlow(formationId: string) {
           numeroTelephone:
             paymentDetails.numeroTelephone || paymentDetails.phoneNumber || '',
         });
+
+        const { paiement, paymentStatus: updatedPaymentStatus } = paymentResponse;
         setLastPaiement(paiement);
+        setPaymentProgress(updatedPaymentStatus ?? null);
 
-        // 2. Lancer la génération d'attestation
-        setStatus('generating_attestation');
-        const { result, attestation: generatedAttestation } =
-          await attestationService.processPaymentAndGenerateAttestation(
-            paymentDetails
-          );
+        let generatedAttestation: Attestation | undefined;
 
-        if (!result.success) {
-          throw new Error(
-            result.error ||
-              "Le paiement a été enregistré mais la génération de l'attestation a échoué."
+        if (updatedPaymentStatus?.canGenerateAttestation) {
+          setStatus('generating_attestation');
+          generatedAttestation = await attestationService.generateAttestation(
+            paymentDetails.formationId
           );
+          setAttestation(generatedAttestation);
         }
 
-        if (generatedAttestation) {
-          setAttestation(generatedAttestation);
+        const refreshedEligibility = await attestationService.checkEligibility(
+          paymentDetails.formationId
+        );
+        setEligibility(refreshedEligibility);
+        setPaymentProgress(refreshedEligibility.paymentStatus ?? updatedPaymentStatus ?? null);
+        if (refreshedEligibility.attestation?.id) {
+          setExistingAttestationId(refreshedEligibility.attestation.id);
         }
 
         setStatus('success');
@@ -139,47 +142,10 @@ export function useAttestationFlow(formationId: string) {
         return {
           paiement,
           attestation: generatedAttestation,
+          paymentStatus: updatedPaymentStatus,
         };
-      } catch (error: any) {
+      } catch (error: unknown) {
         captureError(error, 'attestations.flow.submit');
-
-        // Gérer le cas où l'utilisateur est déjà inscrit
-        if (
-          error.response?.status === 400 &&
-          error.response?.data?.details?.alreadyEnrolled
-        ) {
-          try {
-            const response = await axiosInstance.post<{ data: { attestation: Attestation } }>(
-              '/api/attestations/generer',
-              {
-                formationId: paymentDetails.formationId,
-              }
-            );
-
-            const generatedAttestation = response.data.data.attestation;
-
-            if (generatedAttestation) {
-              setAttestation(generatedAttestation);
-            }
-
-            setStatus('success');
-            setIsDialogOpen(false);
-
-            return {
-              paiement: null,
-              attestation: generatedAttestation,
-            };
-          } catch (attestationError) {
-            captureError(attestationError, 'attestations.flow.enrolled-generate');
-            setError(
-              new Error(
-                "Vous êtes déjà inscrit mais la génération de l'attestation a échoué. Veuillez contacter le support."
-              )
-            );
-            throw error;
-          }
-        }
-
         setError(
           new Error(
             getErrorMessage(
@@ -195,9 +161,6 @@ export function useAttestationFlow(formationId: string) {
     [formationId]
   );
 
-  /**
-   * Télécharge une attestation existante
-   */
   const downloadAttestation = useCallback(async (attestationId: string) => {
     try {
       await attestationService.downloadAttestation(attestationId);
@@ -222,7 +185,6 @@ export function useAttestationFlow(formationId: string) {
   );
 
   return {
-    // État
     status,
     isDialogOpen,
     isCheckingEligibility,
@@ -230,8 +192,7 @@ export function useAttestationFlow(formationId: string) {
     attestation,
     eligibility,
     lastPaiement,
-
-    // Actions
+    paymentProgress,
     checkEligibility,
     openPaymentDialog,
     closePaymentDialog,

@@ -18,14 +18,13 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import type { PaymentDetails } from './types';
 
-// Schéma de validation avec Zod
 const paymentFormSchema = z.object({
   phoneNumber: z
     .string()
     .min(9, 'Le numéro doit contenir au moins 9 chiffres')
     .max(15, 'Numéro trop long')
     .regex(/^[0-9]+$/, 'Le numéro ne doit contenir que des chiffres'),
-  amount: z.number().min(500, 'Le montant minimum est de 500 FCFA'),
+  amount: z.number().positive('Le montant doit être supérieur à 0'),
   paymentMethod: z.enum(['orange', 'mtn']),
 });
 
@@ -37,6 +36,7 @@ interface PaymentDialogProps {
   onPaymentSubmit: (details: PaymentDetails) => Promise<void>;
   formationId: string;
   formationPrix: number;
+  remainingAmount?: number;
   isProcessing?: boolean;
 }
 
@@ -46,10 +46,12 @@ export function PaymentDialog({
   onPaymentSubmit,
   formationId,
   formationPrix,
+  remainingAmount,
   isProcessing = false,
 }: PaymentDialogProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const payableAmount = remainingAmount ?? formationPrix;
 
   const {
     register,
@@ -62,35 +64,42 @@ export function PaymentDialog({
     resolver: zodResolver(paymentFormSchema),
     defaultValues: {
       phoneNumber: '',
-      amount: formationPrix,
+      amount: payableAmount,
       paymentMethod: 'orange',
     },
   });
 
   const selectedMethod = watch('paymentMethod');
 
-  // Mettre à jour le montant quand le prix de la formation change
   useEffect(() => {
-    setValue('amount', formationPrix);
-  }, [formationPrix, setValue]);
+    setValue('amount', payableAmount);
+  }, [payableAmount, setValue]);
 
   useEffect(() => {
-    // Réinitialiser le formulaire quand la boîte de dialogue s'ouvre
     if (open) {
       reset({
         phoneNumber: '',
-        amount: formationPrix,
+        amount: payableAmount,
         paymentMethod: 'orange',
       });
       setIsSubmitting(false);
     }
-  }, [open, formationPrix, reset]);
+  }, [open, payableAmount, reset]);
 
   const onSubmit = async (data: PaymentFormValues) => {
     if (!formationId) {
       console.error(
         "L'identifiant de formation est requis pour enregistrer le paiement."
       );
+      return;
+    }
+
+    if (data.amount > payableAmount) {
+      toast({
+        title: 'Montant invalide',
+        description: `Le montant ne peut pas dépasser ${payableAmount.toLocaleString('fr-FR')} FCFA.`,
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -107,14 +116,6 @@ export function PaymentDialog({
 
       await onPaymentSubmit(paymentDetails);
 
-      // Toast attestation
-      toast({
-        title: 'Attestation',
-        description: 'Votre attestation est maintenant disponible.',
-        variant: 'default',
-      });
-
-      // Toast paiement
       toast({
         title: 'Paiement',
         description: 'Votre paiement a été enregistré avec succès.',
@@ -124,42 +125,6 @@ export function PaymentDialog({
       onOpenChange(false);
     } catch (error) {
       console.error('Erreur lors de la soumission du formulaire:', error);
-
-      // Gérer le cas PAYMENT_ALREADY_ENROLLED
-      const responsePayload = (error as { response?: { data?: unknown } })
-        .response?.data as
-        | {
-            code?: string;
-            message?: string;
-            details?: { alreadyEnrolled?: boolean };
-          }
-        | undefined;
-
-      if (responsePayload?.code === 'PAYMENT_ALREADY_ENROLLED') {
-        // Toast attestation
-        toast({
-          title: 'Attestation',
-          description:
-            responsePayload.message ||
-            'Vous pouvez accéder directement à votre attestation depuis votre espace.',
-          variant: 'default',
-        });
-
-        // Toast paiement
-        toast({
-          title: 'Paiement',
-          description:
-            responsePayload.message ||
-            'Vous êtes déjà inscrit à cette formation.',
-          variant: 'default',
-        });
-
-        onOpenChange(false);
-        return;
-      }
-
-      // Ne pas fermer la boîte de dialogue en cas d'erreur
-      // L'erreur est gérée dans le parent
     } finally {
       setIsSubmitting(false);
     }
@@ -179,14 +144,18 @@ export function PaymentDialog({
         <DialogHeader>
           <DialogTitle>Paiement par mobile money</DialogTitle>
           <DialogDescription>
-            Remplissez les informations pour procéder au paiement sécurisé. Un
-            code de confirmation vous sera envoyé par SMS.
+            Réglez votre formation en une ou plusieurs tranches. L'attestation
+            PDF sera disponible uniquement après paiement complet.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="space-y-4">
-            {/* Sélection de la méthode de paiement */}
+            <div className="rounded-md border bg-slate-50 p-3 text-sm text-slate-700">
+              <p>Prix total: {formationPrix.toLocaleString('fr-FR')} FCFA</p>
+              <p>Reste à payer: {payableAmount.toLocaleString('fr-FR')} FCFA</p>
+            </div>
+
             <div className="space-y-2">
               <Label>Méthode de paiement</Label>
               <RadioGroup
@@ -231,11 +200,9 @@ export function PaymentDialog({
               </RadioGroup>
             </div>
 
-            {/* Numéro de téléphone */}
             <div className="space-y-2">
               <Label htmlFor="phoneNumber">
-                Numéro{' '}
-                {selectedMethod === 'orange' ? 'Orange Money' : 'MTN MoMo'}
+                Numéro {selectedMethod === 'orange' ? 'Orange Money' : 'MTN MoMo'}
               </Label>
               <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
@@ -257,21 +224,24 @@ export function PaymentDialog({
               )}
             </div>
 
-            {/* Montant */}
             <div className="space-y-2">
-              <Label htmlFor="amount">Montant (FCFA)</Label>
+              <Label htmlFor="amount">Montant de la tranche (FCFA)</Label>
               <div className="relative">
                 <Input
                   id="amount"
                   type="number"
-                  value={formationPrix}
-                  readOnly
-                  className="cursor-not-allowed border-gray-200 bg-gray-50 pl-10"
+                  min={1}
+                  max={payableAmount}
+                  step="1"
+                  {...register('amount', { valueAsNumber: true })}
                   disabled={isSubmitting || isProcessing}
                 />
               </div>
+              {errors.amount && (
+                <p className="text-sm text-red-500">{errors.amount.message}</p>
+              )}
               <p className="text-sm text-gray-500">
-                Montant fixe pour cette formation
+                Vous pouvez payer une tranche inférieure ou égale au reste à payer.
               </p>
             </div>
           </div>
@@ -297,7 +267,7 @@ export function PaymentDialog({
                   Traitement...
                 </>
               ) : (
-                `Confirmer le paiement`
+                'Confirmer la tranche'
               )}
             </Button>
           </DialogFooter>

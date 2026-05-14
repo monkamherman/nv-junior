@@ -1,6 +1,8 @@
-import type { PaiementRecord } from '@/features/paiements/services/paiementService';
+import type {
+  PaiementRecord,
+  PaymentProgressStatus,
+} from '@/features/paiements/services/paiementService';
 
-// Types pour les méthodes de paiement (français unifié)
 export type MethodePaiement = 'orange' | 'mtn';
 
 export interface DetailsPaiement {
@@ -8,30 +10,31 @@ export interface DetailsPaiement {
   numeroTelephone: string;
   montant: number;
   formationId: string;
-  // Propriétés pour rétrocompatibilité (transition)
   phoneNumber?: string;
   amount?: number;
   method?: MethodePaiement;
 }
 
-// Alias pour rétrocompatibilité (à supprimer progressivement)
 export type PaymentMethod = MethodePaiement;
 export type PaymentDetails = DetailsPaiement;
 
 export interface EligibiliteResult {
   eligible: boolean;
+  canMakePayment?: boolean;
+  canGenerateAttestation?: boolean;
   attestation?: {
     id: string;
     urlPdf: string;
     dateEmission: string;
   };
   reason?: string;
+  paymentStatus?: PaymentProgressStatus;
 }
 
 export interface PaymentResult {
   success: boolean;
   transactionId?: string;
-  attestationId?: string; // ID de l'attestation générée
+  attestationId?: string;
   error?: string;
 }
 
@@ -43,15 +46,14 @@ export type PaymentStatus =
   | 'success'
   | 'error';
 
-// Alias pour rétrocompatibilité
 export type PaymentData = Omit<PaymentDetails, 'formationId'>;
 
 export interface PaymentSubmitResult {
-  paiement: PaiementRecord | null; // Permettre null pour les utilisateurs déjà inscrits
+  paiement: PaiementRecord | null;
   attestation?: Attestation;
+  paymentStatus?: PaymentProgressStatus;
 }
 
-// Réponse d'éligibilité (ancien type, à supprimer après migration)
 export interface EligibilityResponse {
   eligible: boolean;
   message: string;
@@ -63,7 +65,6 @@ export interface EligibilityResponse {
   };
 }
 
-// Modèle d'attestation
 export interface Attestation {
   id: string;
   numero: string;
@@ -85,7 +86,6 @@ export interface Attestation {
   };
 }
 
-// Props pour le composant AttestationButton
 export interface AttestationButtonProps {
   formationId: string;
   className?: string;
@@ -93,7 +93,6 @@ export interface AttestationButtonProps {
   onError?: (error: Error) => void;
 }
 
-// Props pour le composant PaymentDialog
 export interface PaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;

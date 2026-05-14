@@ -1,4 +1,4 @@
-import { authApi } from '@/api';
+import { authApi } from '@/api/auth.api';
 import { useToast } from '@/hooks/use-toast';
 import { AUTH_EXPIRED_EVENT } from '@/api/api.config';
 import { captureError, getErrorMessage } from '@/lib/errors';

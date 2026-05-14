@@ -186,18 +186,24 @@ export async function generateAttestation(req: Request, res: Response) {
       },
     });
 
-    // Générer le fichier PDF
     try {
       await pdfService.generateAttestationPDF(attestation, inscription);
-      console.log(`PDF généré pour l'attestation ${numeroAttestation}`);
+      console.log("PDF généré pour l'attestation " + numeroAttestation);
     } catch (pdfError) {
+      await prisma.attestation.delete({
+        where: { id: attestation.id },
+      });
+
       console.error("Erreur lors de la génération du PDF:", pdfError);
-      // Ne pas échouer la requête si le PDF ne se génère pas
+      return res.status(500).json({
+        message: "Erreur lors de la génération du PDF de l'attestation",
+      });
     }
 
     const attestationResult = {
       id: attestation.id,
       numero: attestation.numero,
+      urlPdf: attestation.urlPdf,
       formationId,
       userId,
       participant: {

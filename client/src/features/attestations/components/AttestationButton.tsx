@@ -8,7 +8,7 @@ import { useAttestationFlow } from './useAttestationFlow';
 
 interface AttestationButtonProps {
   formationId: string;
-  formationPrix: number; // Ajout du prix
+  formationPrix: number;
   className?: string;
 }
 
@@ -26,6 +26,7 @@ export function AttestationButton({
     attestation,
     eligibility,
     lastPaiement,
+    paymentProgress,
     openPaymentDialog,
     closePaymentDialog,
     submitPayment,
@@ -36,15 +37,30 @@ export function AttestationButton({
   const isProcessingPayment =
     status === 'processing_payment' || status === 'generating_attestation';
   const isLoading = isCheckingEligibility || isProcessingPayment;
+  const hasPartialPayment = (paymentProgress?.paidAmount ?? 0) > 0;
+  const canPayAnotherInstallment =
+    !!paymentProgress &&
+    !paymentProgress.isFullyPaid &&
+    !paymentProgress.hasPendingPayment;
 
   const handlePrimaryAction = async () => {
-    const couldOpen = await openPaymentDialog();
+    try {
+      const couldOpen = await openPaymentDialog();
 
-    if (!couldOpen && eligibility && !eligibility.eligible) {
+      if (!couldOpen && eligibility && !eligibility.eligible) {
+        toast({
+          title: 'Information',
+          description:
+            eligibility.reason || 'Vous ne pouvez pas payer pour le moment.',
+          variant: 'default',
+        });
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Action impossible pour le moment.';
       toast({
-        title: 'Non éligible',
-        description:
-          eligibility.reason || 'Vous ne pouvez pas payer pour le moment.',
+        title: 'Erreur',
+        description: message,
         variant: 'destructive',
       });
     }
@@ -52,12 +68,38 @@ export function AttestationButton({
 
   const handlePaymentSubmit = async (paymentDetails: PaymentDetails) => {
     try {
-      await submitPayment(paymentDetails);
+      const result = await submitPayment(paymentDetails);
+
+      if (result.attestation) {
+        toast({
+          title: 'Attestation disponible',
+          description:
+            'Votre paiement est complet. Vous pouvez maintenant télécharger votre attestation.',
+        });
+        return;
+      }
+
+      if (result.paymentStatus?.isFullyPaid) {
+        toast({
+          title: 'Paiement complet',
+          description: result.paymentStatus.formationEnded
+            ? 'Le paiement est complet. L’attestation est en cours de préparation.'
+            : 'Le paiement est complet. L’attestation sera disponible à la fin de la formation.',
+        });
+        return;
+      }
+
+      if (result.paymentStatus) {
+        toast({
+          title: 'Paiement partiel enregistré',
+          description: `Reste à payer : ${result.paymentStatus.remainingAmount.toLocaleString('fr-FR')} FCFA.`,
+        });
+        return;
+      }
 
       toast({
         title: 'Paiement enregistré',
-        description:
-          'Votre paiement a été validé. Vous pouvez maintenant télécharger le reçu.',
+        description: 'Votre paiement a été enregistré avec succès.',
       });
     } catch (error) {
       const responsePayload = (error as { response?: { data?: unknown } })
@@ -85,34 +127,21 @@ export function AttestationButton({
         throw error;
       }
 
-      // Cas spécial : utilisateur déjà inscrit
-      if (message.includes('déjà inscrit')) {
-        toast({
-          title: 'Déjà inscrit',
-          description:
-            'Vous êtes déjà inscrit à cette formation. Utilisez les boutons ci-dessous pour télécharger votre attestation et votre reçu.',
-          variant: 'default',
-        });
-      } else {
-        toast({
-          title: 'Échec du paiement',
-          description: message,
-          variant: 'destructive',
-        });
-      }
+      toast({
+        title: 'Échec du paiement',
+        description: message,
+        variant: 'destructive',
+      });
       throw error;
     }
   };
 
   const handleDownloadAttestation = async () => {
-    console.log('Téléchargement attestation - attestation:', attestation);
     if (!attestation) {
-      console.log("Pas d'attestation disponible");
       return;
     }
 
     try {
-      console.log('Téléchargement avec ID:', attestation.id);
       await downloadAttestation(attestation.id);
     } catch (error) {
       const message =
@@ -143,29 +172,49 @@ export function AttestationButton({
     }
   };
 
-  if (attestation || lastPaiement) {
+  if (attestation || lastPaiement || hasPartialPayment) {
     return (
-      <div className={`flex flex-wrap gap-3 ${className}`}>
-        {attestation && (
-          <Button
-            onClick={handleDownloadAttestation}
-            className="flex items-center gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Télécharger mon attestation
-          </Button>
+      <div className={`flex flex-col gap-3 ${className}`}>
+        {paymentProgress && (
+          <div className="rounded-md border bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            <p>Déjà payé: {paymentProgress.paidAmount.toLocaleString('fr-FR')} FCFA</p>
+            <p>Reste à payer: {paymentProgress.remainingAmount.toLocaleString('fr-FR')} FCFA</p>
+          </div>
         )}
-        {lastPaiement && (
-          <Button
-            type="button"
-            variant="outline"
-            className="flex items-center gap-2"
-            onClick={handleDownloadReceipt}
-          >
-            <ReceiptText className="h-4 w-4" />
-            Reçu de paiement
-          </Button>
-        )}
+
+        <div className="flex flex-wrap gap-3">
+          {attestation && (
+            <Button
+              onClick={handleDownloadAttestation}
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Télécharger mon attestation
+            </Button>
+          )}
+          {lastPaiement && (
+            <Button
+              type="button"
+              variant="outline"
+              className="flex items-center gap-2"
+              onClick={handleDownloadReceipt}
+            >
+              <ReceiptText className="h-4 w-4" />
+              Reçu de paiement
+            </Button>
+          )}
+          {canPayAnotherInstallment && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex items-center gap-2"
+              onClick={handlePrimaryAction}
+            >
+              <Award className="h-4 w-4" />
+              Payer une autre tranche
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
@@ -195,7 +244,7 @@ export function AttestationButton({
         ) : (
           <>
             <Award className="h-4 w-4" />
-            Obtenir mon attestation
+            {hasPartialPayment ? 'Payer une tranche' : 'Obtenir mon attestation'}
           </>
         )}
       </Button>
@@ -210,6 +259,7 @@ export function AttestationButton({
         onPaymentSubmit={handlePaymentSubmit}
         formationId={formationId}
         formationPrix={formationPrix}
+        remainingAmount={paymentProgress?.remainingAmount}
         isProcessing={isProcessingPayment}
       />
     </>

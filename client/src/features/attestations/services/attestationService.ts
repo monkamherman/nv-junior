@@ -1,7 +1,7 @@
 import { api } from '@/lib/api';
 import { captureError } from '@/lib/errors';
+import type { PaymentProgressStatus } from '@/features/paiements/services/paiementService';
 
-// Types
 export interface AttestationEtendue extends Attestation {
   inscription: {
     id: string;
@@ -27,8 +27,11 @@ export interface Attestation {
 
 export interface EligibiliteResponse {
   eligible: boolean;
+  canMakePayment?: boolean;
+  canGenerateAttestation?: boolean;
   attestation?: Attestation;
   reason?: string;
+  paymentStatus?: PaymentProgressStatus;
   dateFin?: string;
   inscription?: {
     id: string;
@@ -36,17 +39,15 @@ export interface EligibiliteResponse {
   };
 }
 
-// Fonctions de service
 export const verifierEligibilite = async (
   formationId: string
 ): Promise<EligibiliteResponse> => {
   try {
     const response = await api.get<{
-      eligible: boolean;
-      attestation?: Attestation;
-      reason?: string;
+      success: boolean;
+      data: EligibiliteResponse;
     }>(`/api/attestations/verifier-eligibilite/${formationId}`);
-    return response.data;
+    return response.data.data;
   } catch (error) {
     captureError(error, 'attestations.eligibility');
     throw error;
@@ -57,17 +58,17 @@ export const genererAttestation = async (
   formationId: string
 ): Promise<Attestation> => {
   try {
-    const response = await api.post<{ attestation: Attestation }>(
-      `/api/attestations/generer/${formationId}`
-    );
-    return response.data.attestation;
+    const response = await api.post<{
+      success: boolean;
+      data: { attestation: Attestation };
+    }>(`/api/attestations/generer/${formationId}`);
+    return response.data.data.attestation;
   } catch (error) {
     captureError(error, 'attestations.generate');
     throw error;
   }
 };
 
-// Récupérer la liste des attestations de l'utilisateur
 export const getMesAttestations = async (): Promise<AttestationEtendue[]> => {
   try {
     const response = await api.get<{

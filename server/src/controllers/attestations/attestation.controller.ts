@@ -5,6 +5,7 @@ import path from "path";
 import { sendError, sendSuccess } from "../../core/errors/http";
 import sendMail from "../../nodemailer/sendmail";
 import { generateCertificate } from "../../services/certificateService";
+import { getPaymentProgress } from "../../services/paymentProgress.service";
 
 const prisma = new PrismaClient();
 
@@ -78,65 +79,98 @@ export const verifierEligibiliteAttestation = async (
     }
 
     const { formationId } = req.params;
+    const paymentStatus = await getPaymentProgress(req.user.id, formationId);
 
-    // 1. Vérifier si une inscription validée avec un paiement existe déjà
-    const inscriptionValidee = await prisma.inscription.findFirst({
+    if (!paymentStatus) {
+      return sendError(
+        res,
+        404,
+        "ATTESTATION_FORMATION_NOT_FOUND",
+        "Formation non trouvée",
+      );
+    }
+
+    const inscription = await prisma.inscription.findFirst({
       where: {
         utilisateurId: req.user.id,
         formationId,
-        statut: "VALIDEE",
-        paiement: {
-          statut: "VALIDE",
-        },
       },
       include: {
-        formation: true,
         attestation: true,
       },
     });
 
-    if (inscriptionValidee) {
-      // Si une attestation existe déjà, l'utilisateur peut la télécharger
-      if (inscriptionValidee.attestation) {
-        return sendSuccess(res, {
-          eligible: false,
-          reason: "Attestation déjà disponible",
-          attestation: inscriptionValidee.attestation,
-        });
-      }
-
-      // Si la formation n'est pas terminée
-      // const maintenant = new Date();
-      // const dateFinFormation = new Date(inscriptionValidee.formation.dateFin);
-      // if (maintenant < dateFinFormation) {
-      //   return sendSuccess(res, {
-      //     eligible: false,
-      //     reason: `Formation en cours. Attestation disponible après le ${dateFinFormation.toLocaleDateString()}`,
-      //   });
-      // }
-
-      // Si le paiement est fait mais l'attestation pas encore générée (cas rare)
-      return sendSuccess(res, { eligible: true });
-    }
-
-    // 2. Vérifier si un paiement en attente ou en cours existe déjà pour éviter les doublons
-    const paiementExistant = await prisma.paiement.findFirst({
-      where: {
-        utilisateurId: req.user.id,
-        formationId,
-        statut: { in: ["EN_ATTENTE", "EN_COURS"] },
-      },
-    });
-
-    if (paiementExistant) {
+    if (inscription?.attestation) {
       return sendSuccess(res, {
         eligible: false,
-        reason: "Un paiement est déjà en cours de traitement.",
+        canMakePayment: false,
+        canGenerateAttestation: false,
+        reason: "Attestation déjà disponible",
+        attestation: inscription.attestation,
+        paymentStatus,
       });
     }
 
-    // 3. Si aucune des conditions ci-dessus n'est remplie, l'utilisateur est éligible pour payer.
-    return sendSuccess(res, { eligible: true });
+    if (paymentStatus.isFullyPaid) {
+      if (!paymentStatus.formationEnded) {
+        return sendSuccess(res, {
+          eligible: false,
+          canMakePayment: false,
+          canGenerateAttestation: false,
+          reason: "Le paiement est complet, mais l'attestation ne sera disponible qu'à la fin de la formation.",
+          paymentStatus,
+          inscription: inscription
+            ? {
+                id: inscription.id,
+                dateInscription: inscription.dateInscription,
+              }
+            : undefined,
+        });
+      }
+
+      return sendSuccess(res, {
+        eligible: true,
+        canMakePayment: false,
+        canGenerateAttestation: true,
+        reason: "Paiement complet effectué. Vous pouvez maintenant générer votre attestation.",
+        paymentStatus,
+        inscription: inscription
+          ? {
+              id: inscription.id,
+              dateInscription: inscription.dateInscription,
+            }
+          : undefined,
+      });
+    }
+
+    if (paymentStatus.hasPendingPayment) {
+      return sendSuccess(res, {
+        eligible: false,
+        canMakePayment: false,
+        canGenerateAttestation: false,
+        reason: "Un paiement est déjà en cours de traitement.",
+        paymentStatus,
+      });
+    }
+
+    const reason =
+      paymentStatus.paidAmount > 0
+        ? `Paiement partiel enregistré. Reste à payer : ${paymentStatus.remainingAmount.toLocaleString("fr-FR")} FCFA.`
+        : undefined;
+
+    return sendSuccess(res, {
+      eligible: true,
+      canMakePayment: true,
+      canGenerateAttestation: false,
+      reason,
+      paymentStatus,
+      inscription: inscription
+        ? {
+            id: inscription.id,
+            dateInscription: inscription.dateInscription,
+          }
+        : undefined,
+    });
   } catch (error) {
     console.error("Erreur lors de la vérification d'éligibilité:", error);
     const errorMessage =
@@ -164,12 +198,10 @@ export const genererMonAttestation = async (req: Request, res: Response) => {
     console.log("Génération attestation - Formation ID:", formationId);
     console.log("Génération attestation - User ID:", req.user.id);
 
-    // Vérifier l'éligibilité
     const inscription = await prisma.inscription.findFirst({
       where: {
         utilisateurId: req.user.id,
         formationId,
-        statut: "VALIDEE",
       },
       include: {
         paiement: true,
@@ -179,35 +211,28 @@ export const genererMonAttestation = async (req: Request, res: Response) => {
       },
     });
 
-    console.log("Inscription trouvée:", !!inscription);
-    if (inscription) {
-      console.log("Statut inscription:", inscription.statut);
-      console.log("Paiement:", !!inscription.paiement);
-      if (inscription.paiement) {
-        console.log("Statut paiement:", inscription.paiement.statut);
-      }
-      console.log("Attestation existante:", !!inscription.attestation);
-    }
+    const paymentStatus = await getPaymentProgress(req.user.id, formationId);
 
-    if (!inscription) {
+    console.log("Inscription trouvée:", !!inscription);
+    console.log("Statut de paiement cumulé:", paymentStatus);
+
+    if (!inscription || !paymentStatus) {
       console.log("Inscription non trouvée");
       return sendError(
         res,
         404,
         "ATTESTATION_ENROLLMENT_NOT_FOUND",
-        "Inscription non trouvée ou non validée",
+        "Inscription non trouvée pour cette formation",
       );
     }
 
-    // Vérifications
-    // Pour les utilisateurs déjà inscrits, on peut être plus flexible sur le paiement
-    if (inscription.paiement && inscription.paiement.statut !== "VALIDE") {
-      console.log("Paiement non valide - statut:", inscription.paiement.statut);
+    if (!paymentStatus.isFullyPaid) {
       return sendError(
         res,
         400,
-        "ATTESTATION_PAYMENT_NOT_VALID",
-        "Le paiement doit être validé pour générer une attestation",
+        "ATTESTATION_PAYMENT_INCOMPLETE",
+        "Le paiement complet de la formation est requis avant de générer l'attestation.",
+        paymentStatus,
       );
     }
 
@@ -217,12 +242,11 @@ export const genererMonAttestation = async (req: Request, res: Response) => {
       );
       return sendSuccess(
         res,
-        { attestation: inscription.attestation },
+        { attestation: inscription.attestation, paymentStatus },
         "Attestation déjà disponible",
       );
     }
 
-    // Vérifier si la formation est terminée
     const maintenant = new Date();
     const dateFinFormation = new Date(inscription.formation.dateFin);
 
@@ -233,13 +257,12 @@ export const genererMonAttestation = async (req: Request, res: Response) => {
         400,
         "ATTESTATION_FORMATION_NOT_FINISHED",
         "La formation n'est pas encore terminée",
+        paymentStatus,
       );
     }
 
-    // Générer le certificat
     const certificateData = await generateCertificate(inscription);
 
-    // Créer l'attestation
     const attestation = await prisma.attestation.create({
       data: {
         numero: `ATT-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -259,7 +282,6 @@ export const genererMonAttestation = async (req: Request, res: Response) => {
       },
     });
 
-    // Envoyer l'email de notification
     try {
       const emailContent = `
 Cher/Chère ${inscription.utilisateur.prenom} ${inscription.utilisateur.nom},
@@ -298,12 +320,11 @@ L'équipe Centic
         "Erreur lors de l'envoi de l'email d'attestation:",
         emailError,
       );
-      // Ne pas bloquer la réponse si l'email échoue
     }
 
     return sendSuccess(
       res,
-      { attestation },
+      { attestation, paymentStatus },
       "Attestation générée avec succès",
       201,
     );
@@ -364,7 +385,6 @@ export const telechargerMonAttestation = async (
       );
     }
 
-    // Vérifier que l'utilisateur est bien le propriétaire
     if (attestation.inscription.utilisateurId !== req.user.id) {
       return sendError(
         res,
@@ -374,7 +394,21 @@ export const telechargerMonAttestation = async (
       );
     }
 
-    // Mettre à jour le statut
+    const paymentStatus = await getPaymentProgress(
+      req.user.id,
+      attestation.formationId,
+    );
+
+    if (!paymentStatus?.isFullyPaid) {
+      return sendError(
+        res,
+        400,
+        "ATTESTATION_PAYMENT_INCOMPLETE",
+        "Le paiement complet de la formation est requis avant le téléchargement de l'attestation.",
+        paymentStatus,
+      );
+    }
+
     await prisma.attestation.update({
       where: { id },
       data: {
@@ -458,7 +492,6 @@ export const genererPdfAttestation = async (req: Request, res: Response) => {
       );
     }
 
-    // Vérifier que l'utilisateur est bien le propriétaire
     if (attestation.inscription.utilisateurId !== req.user.id) {
       return sendError(
         res,
@@ -468,10 +501,23 @@ export const genererPdfAttestation = async (req: Request, res: Response) => {
       );
     }
 
-    // Générer le PDF à la volée
+    const paymentStatus = await getPaymentProgress(
+      req.user.id,
+      attestation.formationId,
+    );
+
+    if (!paymentStatus?.isFullyPaid) {
+      return sendError(
+        res,
+        400,
+        "ATTESTATION_PAYMENT_INCOMPLETE",
+        "Le paiement complet de la formation est requis avant le téléchargement de l'attestation.",
+        paymentStatus,
+      );
+    }
+
     const certificateData = await generateCertificate(attestation.inscription);
 
-    // Mettre à jour le statut de l'attestation
     await prisma.attestation.update({
       where: { id },
       data: {
@@ -480,14 +526,12 @@ export const genererPdfAttestation = async (req: Request, res: Response) => {
       },
     });
 
-    // Renvoyer le PDF généré
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="attestation-${attestation.numero}.pdf"`,
     );
 
-    // Si le service de certificat renvoie une URL, on récupère le fichier
     if (certificateData.url) {
       const filePath = path.join(
         __dirname,

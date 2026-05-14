@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import dotenv from 'dotenv';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { defineConfig, loadEnv } from 'vite'; // ← Ajouter loadEnv
+import { defineConfig, loadEnv } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
 dotenv.config();
@@ -11,12 +11,9 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  // 🔹 Charger les variables d'environnement selon le mode
   const env = loadEnv(mode, process.cwd(), 'VITE_');
 
-  // 🔹 Récupérer VITE_API_URL - "" = même origine (reverse proxy NPM)
   const apiUrl =
     process.env.VITE_API_URL !== undefined
       ? process.env.VITE_API_URL
@@ -24,16 +21,17 @@ export default defineConfig(({ mode }) => {
         ? env.VITE_API_URL
         : 'https://api.rageai.digital';
 
+  const devPort = Number(process.env.PORT) || 3000;
+  const devHost = process.env.HOST || '0.0.0.0';
+
   return {
     plugins: [react(), tsconfigPaths()],
     base: './',
-
-    // 🔹 Injecter la variable dans le bundle via define
     define: {
       'import.meta.env.VITE_API_URL': JSON.stringify(apiUrl),
     },
-
     resolve: {
+      dedupe: ['react', 'react-dom'],
       alias: [
         { find: '@', replacement: path.resolve(__dirname, 'src') },
         { find: 'process', replacement: 'process/browser' },
@@ -42,10 +40,16 @@ export default defineConfig(({ mode }) => {
         { find: 'util', replacement: 'util' },
       ],
     },
-
     server: {
-      host: process.env.HOST || '0.0.0.0',
-      port: Number(process.env.PORT) || 3000,
+      host: devHost,
+      port: devPort,
+      strictPort: true,
+      hmr: {
+        host: 'localhost',
+        port: devPort,
+        clientPort: devPort,
+        protocol: 'ws',
+      },
       proxy: {
         '/api': {
           target: 'http://localhost:10000',
@@ -54,19 +58,16 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-
     build: {
       outDir: 'dist',
       rollupOptions: {
         input: './index.html',
       },
     },
-
     preview: {
-      host: process.env.HOST || '0.0.0.0',
+      host: devHost,
       port: Number(process.env.PORT) || 4000,
     },
-
     css: {
       postcss: './postcss.config.js',
     },

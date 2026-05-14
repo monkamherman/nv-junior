@@ -1,27 +1,13 @@
 import { axiosInstance } from '@/api/api.config';
 import { captureError } from '@/lib/errors';
-import { getPaymentService } from './PaymentService.abstract';
-import type {
-  Attestation,
-  EligibiliteResult,
-  PaymentDetails,
-  PaymentResult,
-} from './types';
+import type { Attestation, EligibiliteResult } from './types';
 
 const API_BASE_URL = '/api/attestations';
 
-/**
- * Service pour gérer les opérations liées aux paiements et aux attestations
- */
 export class AttestationService {
-  private paymentService = getPaymentService();
-
-  /**
-   * Vérifie l'éligibilité pour une formation
-   */
   async checkEligibility(formationId: string): Promise<EligibiliteResult> {
     try {
-      const response = await axiosInstance.get<EligibiliteResult>(
+      const response = await axiosInstance.get<{ data: EligibiliteResult }>(
         `${API_BASE_URL}/verifier-eligibilite/${formationId}`
       );
 
@@ -34,52 +20,22 @@ export class AttestationService {
     }
   }
 
-  /**
-   * Traite un paiement et génère une attestation
-   */
-  async processPaymentAndGenerateAttestation(
-    details: PaymentDetails
-  ): Promise<{ result: PaymentResult; attestation?: Attestation }> {
-    // 1. Traitement du paiement
-    const paymentResult = await this.paymentService.processPayment(details);
-
-    if (!paymentResult.success) {
-      return { result: paymentResult };
-    }
-
-    // 2. Si le paiement réussit, générer l'attestation
+  async generateAttestation(formationId: string): Promise<Attestation> {
     try {
       const response = await axiosInstance.post<{ data: { attestation: Attestation } }>(
         `${API_BASE_URL}/generer`,
         {
-          formationId: details.formationId,
-          paymentMethod: details.methode,
-          phoneNumber: details.numeroTelephone,
-          amount: details.montant,
-          transactionId: paymentResult.transactionId,
+          formationId,
         }
       );
 
-      const attestation = response.data.data.attestation;
-      return {
-        result: { ...paymentResult, attestationId: attestation.id },
-        attestation,
-      };
+      return response.data.data.attestation;
     } catch (error) {
       captureError(error, 'attestations.flow.generate');
-      return {
-        result: {
-          success: false,
-          error:
-            "Le paiement a réussi mais la génération de l'attestation a échoué. Contactez le support.",
-        },
-      };
+      throw error;
     }
   }
 
-  /**
-   * Télécharge une attestation générée
-   */
   async downloadAttestation(attestationId: string): Promise<void> {
     try {
       const response = await axiosInstance.get(
@@ -107,5 +63,4 @@ export class AttestationService {
   }
 }
 
-// Export d'une instance unique du service
 export const attestationService = new AttestationService();
