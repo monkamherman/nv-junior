@@ -3,6 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -15,9 +16,8 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { format, parseISO } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { toast } from '@/components/ui/use-toast';
+import { format } from 'date-fns';
+import { api } from '@/lib/api';
 import { formationSchema, type FormationFormValues } from '../schemas/formation.schema';
 import {
   Select,
@@ -27,6 +27,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+type Formateur = {
+  id: string;
+  nom: string;
+  prenom: string;
+  email?: string | null;
+  qualificationProfessionnelle: string;
+};
+
 interface FormationFormProps {
   onSubmit: (data: FormationFormValues) => Promise<void>;
   defaultValues?: Partial<FormationFormValues>;
@@ -34,7 +42,20 @@ interface FormationFormProps {
   errors?: Record<string, string>;
 }
 
-export function FormationForm({ onSubmit, defaultValues, isSubmitting = false, errors = {} }: FormationFormProps) {
+export function FormationForm({
+  onSubmit,
+  defaultValues,
+  isSubmitting = false,
+  errors = {},
+}: FormationFormProps) {
+  const { data: formateurs = [] } = useQuery<Formateur[]>({
+    queryKey: ['dashboard-formateurs'],
+    queryFn: async () => {
+      const { data } = await api.get('/api/dashboard/formateurs');
+      return data;
+    },
+  });
+
   const form = useForm<FormationFormValues>({
     resolver: zodResolver(formationSchema),
     defaultValues: {
@@ -44,11 +65,11 @@ export function FormationForm({ onSubmit, defaultValues, isSubmitting = false, e
       dateDebut: format(new Date(), 'yyyy-MM-dd'),
       dateFin: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
       statut: 'BROUILLON',
+      formateurIds: [],
       ...defaultValues,
     } as FormationFormValues,
   });
 
-  // Effet pour afficher les erreurs de validation du serveur
   useEffect(() => {
     if (Object.keys(errors).length > 0) {
       Object.entries(errors).forEach(([fieldName, errorMessage]) => {
@@ -60,13 +81,26 @@ export function FormationForm({ onSubmit, defaultValues, isSubmitting = false, e
     }
   }, [errors, form]);
 
+  const selectedFormateurIds = form.watch('formateurIds') || [];
+
+  const toggleFormateur = (formateurId: string) => {
+    const current = new Set(selectedFormateurIds);
+    if (current.has(formateurId)) {
+      current.delete(formateurId);
+    } else {
+      current.add(formateurId);
+    }
+    form.setValue('formateurIds', Array.from(current), {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+  };
+
   const handleSubmit = async (data: FormationFormValues) => {
     try {
-      console.log('Données du formulaire à soumettre:', data);
       await onSubmit(data);
     } catch (error) {
       console.error('Erreur lors de la soumission du formulaire:', error);
-      // Les erreurs sont maintenant gérées par le composant parent
     }
   };
 
@@ -109,7 +143,7 @@ export function FormationForm({ onSubmit, defaultValues, isSubmitting = false, e
             )}
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             <FormField
               control={form.control}
               name="prix"
@@ -137,11 +171,7 @@ export function FormationForm({ onSubmit, defaultValues, isSubmitting = false, e
                   <FormItem>
                     <FormLabel>Date de début</FormLabel>
                     <FormControl>
-                      <Input
-                        type="date"
-                        {...field}
-                        min={today}
-                      />
+                      <Input type="date" {...field} min={today} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -158,11 +188,7 @@ export function FormationForm({ onSubmit, defaultValues, isSubmitting = false, e
                   <FormItem>
                     <FormLabel>Date de fin</FormLabel>
                     <FormControl>
-                      <Input
-                        type="date"
-                        {...field}
-                        min={startDate}
-                      />
+                      <Input type="date" {...field} min={startDate} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -170,6 +196,54 @@ export function FormationForm({ onSubmit, defaultValues, isSubmitting = false, e
               }}
             />
           </div>
+
+          <FormField
+            control={form.control}
+            name="formateurIds"
+            render={() => (
+              <FormItem>
+                <FormLabel>Formateurs assignés</FormLabel>
+                <FormDescription>
+                  Sélectionnez un ou plusieurs formateurs manuels pour cette formation.
+                </FormDescription>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {formateurs.map((formateur) => {
+                    const checked = selectedFormateurIds.includes(formateur.id);
+                    return (
+                      <label
+                        key={formateur.id}
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${checked ? 'border-blue-600 bg-blue-50' : 'border-slate-200 bg-white'}`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={checked}
+                          onChange={() => toggleFormateur(formateur.id)}
+                        />
+                        <div className="space-y-1">
+                          <div className="font-medium">
+                            {formateur.prenom} {formateur.nom}
+                          </div>
+                          <div className="text-sm text-slate-600">
+                            {formateur.qualificationProfessionnelle}
+                          </div>
+                          {formateur.email && (
+                            <div className="text-xs text-slate-500">{formateur.email}</div>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+                {formateurs.length === 0 && (
+                  <p className="text-sm text-amber-600">
+                    Aucun formateur disponible. Créez d'abord les formateurs depuis le dashboard.
+                  </p>
+                )}
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <FormField
             control={form.control}
@@ -183,10 +257,7 @@ export function FormationForm({ onSubmit, defaultValues, isSubmitting = false, e
                   </FormDescription>
                 </div>
                 <FormControl>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger className="w-[180px]">
                         <SelectValue placeholder="Sélectionner un statut" />
@@ -213,11 +284,7 @@ export function FormationForm({ onSubmit, defaultValues, isSubmitting = false, e
           >
             Réinitialiser
           </Button>
-          <Button 
-            type="submit" 
-            disabled={isSubmitting}
-            className="min-w-[200px]"
-          >
+          <Button type="submit" disabled={isSubmitting} className="min-w-[200px]">
             {isSubmitting ? 'Enregistrement...' : 'Enregistrer la formation'}
           </Button>
         </div>

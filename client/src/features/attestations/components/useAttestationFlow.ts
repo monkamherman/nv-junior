@@ -1,9 +1,9 @@
-import { captureError, getErrorMessage } from '@/lib/errors';
 import {
   paiementService,
   type PaiementRecord,
   type PaymentProgressStatus,
 } from '@/features/paiements/services/paiementService';
+import { captureError, getErrorMessage } from '@/lib/errors';
 import { useCallback, useState } from 'react';
 import { attestationService } from './PaymentService';
 import type {
@@ -19,7 +19,9 @@ export function useAttestationFlow(formationId: string) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [attestation, setAttestation] = useState<Attestation | null>(null);
-  const [eligibility, setEligibility] = useState<EligibiliteResult | null>(null);
+  const [eligibility, setEligibility] = useState<EligibiliteResult | null>(
+    null
+  );
   const [existingAttestationId, setExistingAttestationId] = useState<
     string | null
   >(null);
@@ -58,31 +60,41 @@ export function useAttestationFlow(formationId: string) {
   }, [formationId]);
 
   const openPaymentDialog = useCallback(async () => {
+    console.log('openPaymentDialog appelé');
+    console.log('existingAttestationId:', existingAttestationId);
+    console.log('eligibility:', eligibility);
+
     if (existingAttestationId) {
+      console.log('Attestation existe déjà, téléchargement...');
       await attestationService.downloadAttestation(existingAttestationId);
       return false;
     }
 
     const result = eligibility ?? (await checkEligibility());
+    console.log('result:', result);
 
     if (!result) {
+      console.log('Pas de result, retour false');
       return false;
     }
 
     if (result.canGenerateAttestation) {
+      console.log('Peut générer attestation');
       setStatus('generating_attestation');
-      const generatedAttestation = await attestationService.generateAttestation(
-        formationId
-      );
+      const generatedAttestation =
+        await attestationService.generateAttestation(formationId);
       setAttestation(generatedAttestation);
       setStatus('success');
       return false;
     }
 
-    if (result.canMakePayment === false || !result.eligible) {
+    // Permettre l'ouverture du dialog même si canMakePayment est false quand on a un paiement partiel
+    if (result.canMakePayment === false && !result.paymentStatus?.paidAmount) {
+      console.log('canMakePayment false et pas de paiement, retour false');
       return false;
     }
 
+    console.log('Ouverture du dialog');
     setIsDialogOpen(true);
     setStatus('dialog_open');
     return true;
@@ -113,7 +125,8 @@ export function useAttestationFlow(formationId: string) {
             paymentDetails.numeroTelephone || paymentDetails.phoneNumber || '',
         });
 
-        const { paiement, paymentStatus: updatedPaymentStatus } = paymentResponse;
+        const { paiement, paymentStatus: updatedPaymentStatus } =
+          paymentResponse;
         setLastPaiement(paiement);
         setPaymentProgress(updatedPaymentStatus ?? null);
 
@@ -131,7 +144,9 @@ export function useAttestationFlow(formationId: string) {
           paymentDetails.formationId
         );
         setEligibility(refreshedEligibility);
-        setPaymentProgress(refreshedEligibility.paymentStatus ?? updatedPaymentStatus ?? null);
+        setPaymentProgress(
+          refreshedEligibility.paymentStatus ?? updatedPaymentStatus ?? null
+        );
         if (refreshedEligibility.attestation?.id) {
           setExistingAttestationId(refreshedEligibility.attestation.id);
         }

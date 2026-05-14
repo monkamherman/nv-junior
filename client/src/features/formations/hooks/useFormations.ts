@@ -2,6 +2,16 @@ import { toast } from '@/components/ui/use-toast';
 import { api } from '@/lib/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+export interface FormationTrainer {
+  id: string;
+  nom: string;
+  prenom: string;
+  email?: string | null;
+  telephone?: string | null;
+  qualificationProfessionnelle: string;
+  bio?: string | null;
+}
+
 export interface Formation {
   id: string;
   titre: string;
@@ -9,23 +19,14 @@ export interface Formation {
   prix: number;
   dateDebut: string;
   dateFin: string;
-  statut: 'OUVERTE' | 'EN_COURS' | 'TERMINE' | 'A_VENIR';
+  statut: 'OUVERTE' | 'EN_COURS' | 'TERMINE' | 'A_VENIR' | 'BROUILLON' | 'TERMINEE';
   createdAt: string;
   updatedAt: string;
-  formateur?: {
-    id: string;
-    nom: string;
-    prenom: string;
-  };
+  formateurs: FormationTrainer[];
 }
 
 export interface UserFormation extends Formation {
   dateInscription: string;
-  formateur: {
-    id: string;
-    nom: string;
-    prenom: string;
-  };
 }
 
 export function useFormations() {
@@ -63,7 +64,6 @@ export function useGenerateAttestation(formationId: string) {
         }
       );
 
-      // Créer une URL pour le fichier PDF
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -74,7 +74,7 @@ export function useGenerateAttestation(formationId: string) {
 
       return url;
     },
-    enabled: false, // Ne pas exécuter automatiquement
+    enabled: false,
   });
 }
 
@@ -88,7 +88,6 @@ export function useGenerateAttestationMutation() {
         }
       );
 
-      // Créer une URL pour le fichier PDF
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -115,6 +114,7 @@ export function useUpdateFormation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-formations'] });
+      queryClient.invalidateQueries({ queryKey: ['formations'] });
       toast({
         title: 'Succès',
         description: 'La formation a été mise à jour avec succès',
@@ -141,6 +141,7 @@ export function useDeleteFormation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-formations'] });
+      queryClient.invalidateQueries({ queryKey: ['formations'] });
       toast({
         title: 'Succès',
         description: 'La formation a été supprimée avec succès',

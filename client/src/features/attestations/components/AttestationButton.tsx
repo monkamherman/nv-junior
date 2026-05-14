@@ -57,7 +57,9 @@ export function AttestationButton({
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'Action impossible pour le moment.';
+        error instanceof Error
+          ? error.message
+          : 'Action impossible pour le moment.';
       toast({
         title: 'Erreur',
         description: message,
@@ -174,48 +176,70 @@ export function AttestationButton({
 
   if (attestation || lastPaiement || hasPartialPayment) {
     return (
-      <div className={`flex flex-col gap-3 ${className}`}>
-        {paymentProgress && (
-          <div className="rounded-md border bg-slate-50 px-3 py-2 text-sm text-slate-700">
-            <p>Déjà payé: {paymentProgress.paidAmount.toLocaleString('fr-FR')} FCFA</p>
-            <p>Reste à payer: {paymentProgress.remainingAmount.toLocaleString('fr-FR')} FCFA</p>
-          </div>
-        )}
+      <>
+        <div className={`flex flex-col gap-3 ${className}`}>
+          {paymentProgress && (
+            <div className="rounded-md border bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <p>
+                Déjà payé: {paymentProgress.paidAmount.toLocaleString('fr-FR')}{' '}
+                FCFA
+              </p>
+              <p>
+                Reste à payer:{' '}
+                {paymentProgress.remainingAmount.toLocaleString('fr-FR')} FCFA
+              </p>
+            </div>
+          )}
 
-        <div className="flex flex-wrap gap-3">
-          {attestation && (
-            <Button
-              onClick={handleDownloadAttestation}
-              className="flex items-center gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Télécharger mon attestation
-            </Button>
-          )}
-          {lastPaiement && (
-            <Button
-              type="button"
-              variant="outline"
-              className="flex items-center gap-2"
-              onClick={handleDownloadReceipt}
-            >
-              <ReceiptText className="h-4 w-4" />
-              Reçu de paiement
-            </Button>
-          )}
-          {canPayAnotherInstallment && (
-            <Button
-              type="button"
-              variant="secondary"
-              className="flex items-center gap-2"
-              onClick={handlePrimaryAction}
-            >
-              <Award className="h-4 w-4" />
-              Payer une autre tranche
-            </Button>
-          )}
+          <div className="flex flex-wrap gap-3">
+            {attestation && (
+              <Button
+                onClick={handleDownloadAttestation}
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Télécharger mon attestation
+              </Button>
+            )}
+            {lastPaiement && (
+              <Button
+                type="button"
+                variant="outline"
+                className="flex items-center gap-2"
+                onClick={handleDownloadReceipt}
+              >
+                <ReceiptText className="h-4 w-4" />
+                Reçu de paiement
+              </Button>
+            )}
+            {canPayAnotherInstallment && (
+              <Button
+                type="button"
+                variant="secondary"
+                className="flex items-center gap-2"
+                onClick={handlePrimaryAction}
+              >
+                <Award className="h-4 w-4" />
+                Payer une autre tranche
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+
+        <PaymentDialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              closePaymentDialog();
+            }
+          }}
+          onPaymentSubmit={handlePaymentSubmit}
+          formationId={formationId}
+          formationPrix={formationPrix}
+          remainingAmount={paymentProgress?.remainingAmount}
+          isProcessing={isProcessingPayment}
+        />
+      </>
     );
   }
 
@@ -244,7 +268,9 @@ export function AttestationButton({
         ) : (
           <>
             <Award className="h-4 w-4" />
-            {hasPartialPayment ? 'Payer une tranche' : 'Obtenir mon attestation'}
+            {hasPartialPayment
+              ? 'Payer une tranche'
+              : 'Je souscris a la formation'}
           </>
         )}
       </Button>

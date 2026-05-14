@@ -202,7 +202,8 @@ export function PaymentDialog({
 
             <div className="space-y-2">
               <Label htmlFor="phoneNumber">
-                Numéro {selectedMethod === 'orange' ? 'Orange Money' : 'MTN MoMo'}
+                Numéro{' '}
+                {selectedMethod === 'orange' ? 'Orange Money' : 'MTN MoMo'}
               </Label>
               <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
@@ -230,7 +231,6 @@ export function PaymentDialog({
                 <Input
                   id="amount"
                   type="number"
-                  min={1}
                   max={payableAmount}
                   step="1"
                   {...register('amount', { valueAsNumber: true })}
@@ -241,7 +241,8 @@ export function PaymentDialog({
                 <p className="text-sm text-red-500">{errors.amount.message}</p>
               )}
               <p className="text-sm text-gray-500">
-                Vous pouvez payer une tranche inférieure ou égale au reste à payer.
+                Vous pouvez payer une tranche inférieure ou égale au reste à
+                payer.
               </p>
             </div>
           </div>

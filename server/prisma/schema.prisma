@@ -36,11 +36,11 @@ enum ModePaiement {
 }
 
 enum StatutPaiement {
-  EN_ATTENTE // En attente de confirmation
-  EN_COURS // Paiement en cours de traitement
-  VALIDE // Paiement validé
-  ANNULE // Paiement annulé
-  ECHEC // Échec du paiement
+  EN_ATTENTE
+  EN_COURS
+  VALIDE
+  ANNULE
+  ECHEC
 }
 
 enum StatutAttestation {
@@ -63,9 +63,24 @@ model Utilisateur {
   inscriptions Inscription[]
   paiements    Paiement[]
   attestations Attestation[]
-  formations   Formation[]   @relation("FormateurEnCharge")
 
   @@map("utilisateurs")
+}
+
+model Formateur {
+  id                           String               @id @default(auto()) @map("_id") @db.ObjectId
+  nom                          String
+  prenom                       String
+  email                        String?
+  telephone                    String?
+  qualificationProfessionnelle String
+  bio                          String?
+  createdAt                    DateTime             @default(now())
+  updatedAt                    DateTime             @updatedAt
+
+  formations FormationFormateur[]
+
+  @@map("formateurs")
 }
 
 model Formation {
@@ -79,8 +94,7 @@ model Formation {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
-  formateur    Utilisateur?  @relation("FormateurEnCharge", fields: [formateurId], references: [id])
-  formateurId  String?       @db.ObjectId
+  formateurs   FormationFormateur[]
   inscriptions Inscription[]
   attestations Attestation[]
   paiements    Paiement[]
@@ -88,12 +102,24 @@ model Formation {
   @@map("formations")
 }
 
+model FormationFormateur {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  formationId String    @db.ObjectId
+  formateurId String    @db.ObjectId
+  createdAt   DateTime  @default(now())
+
+  formation Formation @relation(fields: [formationId], references: [id])
+  formateur Formateur @relation(fields: [formateurId], references: [id])
+
+  @@unique([formationId, formateurId])
+  @@map("formation_formateurs")
+}
+
 model Inscription {
   id              String            @id @default(auto()) @map("_id") @db.ObjectId
   dateInscription DateTime          @default(now())
   statut          StatutInscription @default(EN_ATTENTE)
 
-  // Relations
   utilisateur   Utilisateur  @relation(fields: [utilisateurId], references: [id])
   utilisateurId String       @db.ObjectId
   formation     Formation    @relation(fields: [formationId], references: [id])
@@ -112,19 +138,17 @@ model Paiement {
   mode         ModePaiement
   statut       StatutPaiement @default(EN_ATTENTE)
   datePaiement DateTime       @default(now())
-  telephone    String // Numéro de téléphone de l'utilisateur
-  operateur    String? // Opérateur (MTN, Orange, etc.)
-  code         String? // Code de transaction
-  commentaire  String? // Commentaire supplémentaire
+  telephone    String
+  operateur    String?
+  code         String?
+  commentaire  String?
 
-  // Champs Monetbil
-  monetbilTransactionId String? // ID de transaction Monetbil
-  monetbilPaymentUrl    String? // URL de paiement Monetbil
-  monetbilStatus        String? // Statut retourné par Monetbil
-  monetbilPhone         String? // Numéro utilisé pour le paiement
-  monetbilOperator      String? // Opérateur retourné par Monetbil
+  monetbilTransactionId String?
+  monetbilPaymentUrl    String?
+  monetbilStatus        String?
+  monetbilPhone         String?
+  monetbilOperator      String?
 
-  // Relations
   utilisateur   Utilisateur   @relation(fields: [utilisateurId], references: [id])
   utilisateurId String        @db.ObjectId
   formation     Formation     @relation(fields: [formationId], references: [id])

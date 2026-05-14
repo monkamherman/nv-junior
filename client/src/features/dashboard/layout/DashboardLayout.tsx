@@ -10,6 +10,7 @@ import {
   Home,
   LogOut,
   Menu,
+  UserSquare2,
   Users,
   X,
 } from 'lucide-react';
@@ -19,6 +20,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 const navItems = [
   { icon: Home, label: 'Tableau de bord', to: '/dashboard' },
   { icon: Users, label: 'Utilisateurs', to: '/dashboard/users' },
+  { icon: UserSquare2, label: 'Formateurs', to: '/dashboard/formateurs' },
   { icon: GraduationCap, label: 'Formations', to: '/dashboard/formations' },
   { icon: FileText, label: 'Paiements', to: '/dashboard/payments' },
   { icon: FileCheck, label: 'Attestations', to: '/dashboard/certificates' },

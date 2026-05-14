@@ -16,7 +16,15 @@ import {
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-// Types
+interface FormationTrainer {
+  id?: string;
+  nom: string;
+  prenom: string;
+  email?: string | null;
+  qualificationProfessionnelle?: string;
+  bio?: string | null;
+}
+
 interface Formation {
   id: string;
   titre: string;
@@ -27,11 +35,7 @@ interface Formation {
   dateDebut: string;
   dateFin: string;
   statut: string;
-  formateur: {
-    nom: string;
-    prenom: string;
-    email: string;
-  };
+  formateurs: FormationTrainer[];
   categorie: string;
   niveau: string;
   prerequis: string[];
@@ -39,7 +43,6 @@ interface Formation {
   image?: string;
 }
 
-// Composant FormationCard pour l'affichage en grille
 const FormationCard: React.FC<{
   formation: Formation;
   onSelect: (formation: Formation) => void;
@@ -91,6 +94,14 @@ const FormationCard: React.FC<{
           </div>
         </div>
 
+        <div className="mb-4 text-sm text-slate-600">
+          {formation.formateurs?.length
+            ? formation.formateurs
+                .map((formateur) => `${formateur.prenom} ${formateur.nom}`)
+                .join(', ')
+            : 'Formateur à déterminer'}
+        </div>
+
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1 text-lg font-bold text-blue-600">
             <DollarSign size={20} />
@@ -109,14 +120,12 @@ const FormationCard: React.FC<{
   );
 };
 
-// Composant FormationDetail pour les détails complets
 const FormationDetail: React.FC<{
   formation: Formation;
   onBack: () => void;
 }> = ({ formation, onBack }) => {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      {/* Header */}
       <div className="mb-6 flex items-center gap-4">
         <Button
           variant="ghost"
@@ -129,9 +138,7 @@ const FormationDetail: React.FC<{
       </div>
 
       <div className="grid gap-8 md:grid-cols-3">
-        {/* Contenu principal */}
         <div className="space-y-6 md:col-span-2">
-          {/* Image et titre */}
           <Card>
             <div className="relative overflow-hidden rounded-t-lg">
               {formation.image ? (
@@ -208,21 +215,6 @@ const FormationDetail: React.FC<{
             </CardContent>
           </Card>
 
-          {/* Contenu détaillé */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Contenu de la formation</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="prose max-w-none">
-                <p className="whitespace-pre-wrap leading-relaxed">
-                  {formation.contenu}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Objectifs */}
           {formation.objectifs && formation.objectifs.length > 0 && (
             <Card>
               <CardHeader>
@@ -241,7 +233,6 @@ const FormationDetail: React.FC<{
             </Card>
           )}
 
-          {/* Prérequis */}
           {formation.prerequis && formation.prerequis.length > 0 && (
             <Card>
               <CardHeader>
@@ -261,36 +252,57 @@ const FormationDetail: React.FC<{
           )}
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-6">
-          {/* Formateur */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                Formateur
+                Formateurs
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-center">
-                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-2xl font-bold text-white">
-                  {formation.formateur
-                    ? `${formation.formateur.prenom?.[0] || ''}${formation.formateur.nom?.[0] || ''}`
-                    : '?'}
-                </div>
-                <h3 className="font-semibold">
-                  {formation.formateur
-                    ? `${formation.formateur.prenom || ''} ${formation.formateur.nom || ''}`
-                    : 'Formateur à déterminer'}
-                </h3>
-                <p className="mb-2 text-sm text-gray-500">
-                  {formation.formateur?.email || 'Email non disponible'}
-                </p>
+              <div className="space-y-4">
+                {formation.formateurs?.length ? (
+                  formation.formateurs.map((formateur, index) => (
+                    <div
+                      key={formateur.id || `${formateur.nom}-${index}`}
+                      className="rounded-lg border p-4"
+                    >
+                      <div className="mb-3 flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 font-bold text-white">
+                          {`${formateur.prenom?.[0] || ''}${formateur.nom?.[0] || ''}` ||
+                            '?'}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">
+                            {formateur.prenom} {formateur.nom}
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            {formateur.email || 'Email non disponible'}
+                          </p>
+                        </div>
+                      </div>
+                      {formateur.qualificationProfessionnelle && (
+                        <p className="text-sm font-medium text-slate-700">
+                          {formateur.qualificationProfessionnelle}
+                        </p>
+                      )}
+                      {formateur.bio && (
+                        <p className="mt-2 text-sm text-slate-600">
+                          {formateur.bio}
+                        </p>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-gray-500">
+                    Formateurs à déterminer
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Actions */}
           <Card>
             <CardContent className="p-6">
               <div className="space-y-4 text-center">
@@ -301,7 +313,6 @@ const FormationDetail: React.FC<{
                   Accès illimité à la formation
                 </p>
 
-                {/* Intégrer le bouton d'attestation ici */}
                 <AttestationButton
                   formationId={formation.id}
                   formationPrix={formation.prix}
@@ -322,7 +333,6 @@ const FormationDetail: React.FC<{
   );
 };
 
-// Page principale
 export default function FormationsPage() {
   const [formations, setFormations] = useState<Formation[]>([]);
   const [selectedFormation, setSelectedFormation] = useState<Formation | null>(
@@ -336,13 +346,9 @@ export default function FormationsPage() {
   const loadFormations = useCallback(async () => {
     try {
       setLoading(true);
-
-      // Récupérer les données en temps réel depuis l'API
       const formationsData = await getAllFormations();
-
       setFormations(formationsData);
 
-      // Si un ID est spécifié, charger cette formation
       if (id) {
         const formation = formationsData.find((f: Formation) => f.id === id);
         if (formation) {
@@ -351,52 +357,27 @@ export default function FormationsPage() {
       }
     } catch (error) {
       console.error('Erreur lors du chargement des formations:', error);
-      // En cas d'erreur API, utiliser les données mockées
       const mockFormations: Formation[] = [
         {
           id: '1',
           titre: 'Développement Web Complet',
           description:
             'Devenez développeur web complet en apprenant HTML, CSS, JavaScript, React et Node.js.',
-          contenu: `Cette formation complète vous permettra de maîtriser le développement web moderne.
-
-Module 1: HTML & CSS Fundamentals
-- Structure sémantique HTML5
-- Design responsive avec CSS Grid et Flexbox
-- Animations et transitions CSS
-
-Module 2: JavaScript Avancé
-- Concepts avancés de JavaScript
-- Manipulation du DOM
-- API et fetch
-- Programmation asynchrone
-
-Module 3: React & Frontend
-- Composants et hooks
-- State management
-- Routing avec React Router
-- Redux Toolkit
-
-Module 4: Backend avec Node.js
-- Express.js
-- Bases de données SQL et NoSQL
-- API REST
-- Authentification JWT
-
-Module 5: Projet Final
-- Création d'une application complète
-- Déploiement
-- Best practices`,
+          contenu: `Cette formation complète vous permettra de maîtriser le développement web moderne.`,
           prix: 150000,
           duree: 120,
           dateDebut: '2024-01-15',
           dateFin: '2024-04-15',
           statut: 'OUVERTE',
-          formateur: {
-            nom: 'Doe',
-            prenom: 'John',
-            email: 'john.doe@example.com',
-          },
+          formateurs: [
+            {
+              nom: 'Doe',
+              prenom: 'John',
+              email: 'john.doe@example.com',
+              qualificationProfessionnelle:
+                'Architecte logiciel et formateur full-stack',
+            },
+          ],
           categorie: 'Développement',
           niveau: 'Intermédiaire',
           prerequis: [
@@ -422,11 +403,20 @@ Module 5: Projet Final
           dateDebut: '2024-02-01',
           dateFin: '2024-03-15',
           statut: 'OUVERTE',
-          formateur: {
-            nom: 'Smith',
-            prenom: 'Jane',
-            email: 'jane.smith@example.com',
-          },
+          formateurs: [
+            {
+              nom: 'Smith',
+              prenom: 'Jane',
+              email: 'jane.smith@example.com',
+              qualificationProfessionnelle: 'Data scientist et consultante IA',
+            },
+            {
+              nom: 'Brown',
+              prenom: 'Alex',
+              email: 'alex.brown@example.com',
+              qualificationProfessionnelle: 'Ingénieur machine learning',
+            },
+          ],
           categorie: 'Intelligence Artificielle',
           niveau: 'Débutant',
           prerequis: ['Mathématiques de base', 'Logique de programmation'],
@@ -462,13 +452,11 @@ Module 5: Projet Final
     navigate(`/formations/${formation.id}`);
   };
 
-  // ...
   const handleBackToList = () => {
     setSelectedFormation(null);
     navigate('/formations');
   };
 
-  // Afficher un avertissement si on est en mode démo, mais continuer d'afficher les formations
   const showDemoWarning = error && error.includes('Mode démonstration');
 
   if (loading) {
@@ -482,7 +470,6 @@ Module 5: Projet Final
     );
   }
 
-  // Si erreur critique (pas mode démo), afficher l'erreur
   if (error && !showDemoWarning) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -505,7 +492,6 @@ Module 5: Projet Final
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Avertissement mode démo */}
       {showDemoWarning && (
         <div className="border-b border-yellow-200 bg-yellow-50">
           <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
@@ -521,40 +507,26 @@ Module 5: Projet Final
         </div>
       )}
 
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="mb-4 text-4xl font-bold text-gray-900">
-              Nos Formations
-            </h1>
-            <p className="mx-auto max-w-3xl text-xl text-gray-600">
-              Découvrez nos formations de qualité pour développer vos
-              compétences et atteindre vos objectifs professionnels
-            </p>
-          </div>
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-8 text-center">
+          <h1 className="mb-4 text-4xl font-bold text-gray-900">
+            Nos formations
+          </h1>
+          <p className="mx-auto max-w-3xl text-lg text-gray-600">
+            Découvrez nos programmes de formation conçus pour développer vos
+            compétences professionnelles.
+          </p>
         </div>
-      </div>
 
-      {/* Contenu */}
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        {formations.length === 0 ? (
-          <div className="py-12 text-center">
-            <p className="text-lg text-gray-500">
-              Aucune formation disponible pour le moment.
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {formations.map((formation) => (
-              <FormationCard
-                key={formation.id}
-                formation={formation}
-                onSelect={handleFormationSelect}
-              />
-            ))}
-          </div>
-        )}
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          {formations.map((formation) => (
+            <FormationCard
+              key={formation.id}
+              formation={formation}
+              onSelect={handleFormationSelect}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

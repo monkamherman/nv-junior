@@ -23,6 +23,7 @@ const CreateFormationPage = lazyPage(
 const EditFormationPage = lazyPage(
   () => import('@/features/formations/pages/EditFormationPage')
 );
+const FormateursPage = lazyPage(() => import('./pages/FormateursPage'));
 const CertificatesList = lazyPage(() =>
   import('@/features/certificates/pages/CertificatesList').then((module) => ({
     default: module.CertificatesList,
@@ -52,6 +53,10 @@ export const dashboardRoutes = [
       {
         path: 'users',
         element: UsersList,
+      },
+      {
+        path: 'formateurs',
+        element: FormateursPage,
       },
       {
         path: 'formations',

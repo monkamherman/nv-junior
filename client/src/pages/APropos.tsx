@@ -1,99 +1,14 @@
-import SectionCard from '@/components/about/SectionCard';
 import StatsSection from '@/components/about/StatsSection';
 import TeamSection from '@/components/about/TeamSection';
-import { Box, Button, Typography } from '@mui/material';
 import { motion } from 'framer-motion';
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
-import {
-  FaBriefcase,
-  FaGlobeAfrica,
-  FaSchool,
-  FaTrophy,
-  FaUsers,
-} from 'react-icons/fa';
+import { FaBriefcase, FaGlobeAfrica, FaSchool, FaTrophy } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 
-// Thème personnalisé
-const theme = {
-  colors: {
-    primary: '#1976d2',
-    secondary: '#9c27b0',
-    success: '#2e7d32',
-    info: '#0288d1',
-    background: {
-      default: '#f5f5f5',
-      paper: '#ffffff',
-    },
-    text: {
-      primary: 'rgba(0, 0, 0, 0.87)',
-      secondary: 'rgba(0, 0, 0, 0.6)',
-    },
-    grey: {
-      200: '#eeeeee',
-      500: '#9e9e9e',
-    },
-  },
-  spacing: (multiplier: number) => `${8 * multiplier}px`,
-  breakpoints: {
-    up: () => '@media (min-width: 900px)',
-    down: () => '@media (max-width: 899px)',
-  },
-};
-
 const APropos: React.FC = () => {
-  const sections = [
-    {
-      title: "Présentation de l'Association CENTIC",
-      icon: <FaSchool style={{ fontSize: 50, color: theme.colors.primary }} />,
-      content:
-        "Le Centre d'Éducation aux Outils de NTIC (CENTIC) est une organisation créée dans le but de promouvoir l'accès et l'utilisation des Nouvelles Technologies de l'Information et de la Communication (NTIC) dans la région du Septentrion, au Cameroun. Fondée le 28 juin 2022, CENTIC s'est donné pour mission de combler le fossé numérique dans cette partie du pays où les opportunités d'insertion professionnelle liées aux technologies numériques restent encore sous-exploitées par la jeunesse.",
-      image: '/logo.jpg',
-      reverse: false,
-    },
-    {
-      title: 'Nos Objectifs',
-      icon: <FaTrophy style={{ fontSize: 50, color: theme.colors.primary }} />,
-      content: [
-        'Renforcer les compétences numériques des jeunes',
-        "Favoriser l'insertion socio-professionnelle",
-        "Encourager l'autonomisation par les métiers du numérique",
-        "Rendre les jeunes compétitifs à l'international",
-        'Sensibiliser aux enjeux des NTIC',
-        'Réduire la fracture numérique',
-      ],
-      image: '/img3.jpg',
-      reverse: true,
-    },
-    {
-      title: 'Notre Impact et Engagements',
-      icon: (
-        <FaGlobeAfrica style={{ fontSize: 50, color: theme.colors.primary }} />
-      ),
-      content:
-        "Depuis sa création, CENTIC a organisé de nombreuses initiatives marquantes, telles que des programmes de formation en informatique, des campagnes de sensibilisation, et des événements visant à promouvoir l'innovation technologique. Grâce à des partenariats stratégiques avec des institutions comme la Délégation Régionale des Postes et Télécommunications et l'Alliance Française de Maroua, CENTIC a pu étendre son influence et renforcer son impact dans l'Extrême-Nord.",
-      image: '/etudiante.jpg',
-      reverse: false,
-    },
-
-    {
-      title: 'Notre Vision',
-      icon: <FaUsers style={{ fontSize: 50, color: theme.colors.primary }} />,
-      content:
-        "Notre vision est de créer un écosystème numérique dynamique dans la région du Septentrion, où chaque jeune, quelle que soit son origine, a accès aux outils et aux compétences nécessaires pour réussir dans l'économie numérique. Nous croyons en un avenir où la technologie devient un levier d'autonomisation et de développement durable pour les communautés locales.",
-      image: '/gallerie/1.jpg',
-      reverse: true,
-    },
-  ];
-
   return (
-    <div
-      style={{
-        paddingTop: theme.spacing(8),
-        paddingBottom: theme.spacing(8),
-        backgroundColor: theme.colors.background.default,
-      }}
-    >
+    <div className="bg-gray-100 pb-16 pt-16">
       <Helmet>
         <title>À Propos - CENTIC</title>
         <meta
@@ -102,198 +17,205 @@ const APropos: React.FC = () => {
         />
       </Helmet>
 
-      <div
-        style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          padding: '0 16px',
-        }}
-      >
-        {/* Hero Section */}
+      <div className="mx-auto max-w-7xl px-4">
+        {/* Section Hero */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
+          className="flex flex-col items-center"
         >
-          <Typography
-            variant="h2"
-            component="h1"
-            align="center"
-            gutterBottom
-            sx={{
-              fontWeight: 800,
-              mb: 3,
-              fontSize: { xs: '2.5rem', md: '3.5rem' },
-              lineHeight: 1.2,
-              background: `linear-gradient(45deg, ${theme.colors.primary} 30%, ${theme.colors.secondary} 90%)`,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              '&:after': {
-                content: '""',
-                display: 'block',
-                width: '80px',
-                height: '4px',
-                background: `linear-gradient(45deg, ${theme.colors.primary}, ${theme.colors.secondary})`,
-                margin: '20px auto 0',
-                borderRadius: '2px',
-              },
-            }}
-          ></Typography>
+          <h1 className="relative mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-center text-4xl font-extrabold leading-tight text-transparent md:text-6xl">
+            À Propos
+            <span className="mx-auto mt-5 block h-1 w-20 rounded-sm bg-gradient-to-r from-blue-600 to-purple-600"></span>
+          </h1>
 
-          <p
-            style={{
-              textAlign: 'center',
-              color: theme.colors.text.secondary,
-              marginBottom: theme.spacing(8),
-              maxWidth: '800px',
-              marginLeft: 'auto',
-              marginRight: 'auto',
-              fontSize: '1.25rem',
-              lineHeight: 1.6,
-            }}
-          >
+          <p className="mx-auto mb-12 max-w-2xl text-center text-xl leading-relaxed text-gray-600">
             Découvrez notre engagement pour l'éducation numérique et l'insertion
             professionnelle dans la région du Septentrion
           </p>
         </motion.div>
 
-        {/* Stats Section */}
+        {/* Section Statistiques */}
         <StatsSection />
 
-        {/* Main Content Sections */}
-        {sections.map((section, index) => (
-          <SectionCard
-            key={index}
-            title={section.title}
-            content={section.content}
-            icon={section.icon}
-            image={section.image}
-            reverse={section.reverse}
-          />
-        ))}
+        {/* Section Présentation */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+          className="mb-16 flex flex-col gap-8 md:flex-row"
+        >
+          <div className="flex-1">
+            <div className="mb-4">
+              <FaSchool className="text-5xl text-blue-600" />
+            </div>
+            <h2 className="mb-4 text-3xl font-bold text-gray-800">
+              Présentation de l'Association CENTIC
+            </h2>
+            <p className="text-lg leading-relaxed text-gray-600">
+              Le Centre d'Éducation aux Outils de NTIC (CENTIC) est une
+              organisation créée dans le but de promouvoir l'accès et
+              l'utilisation des Nouvelles Technologies de l'Information et de la
+              Communication (NTIC) dans la région du Septentrion, au Cameroun.
+              Fondée le 28 juin 2022, CENTIC s'est donné pour mission de combler
+              le fossé numérique dans cette partie du pays où les opportunités
+              d'insertion professionnelle liées aux technologies numériques
+              restent encore sous-exploitées par la jeunesse.
+            </p>
+          </div>
+          <div className="flex-1">
+            <img
+              src="/logo.jpg"
+              alt="Logo CENTIC"
+              className="h-full w-full rounded-lg object-cover shadow-lg"
+            />
+          </div>
+        </motion.div>
 
-        {/* Team Section */}
+        {/* Section Objectifs */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+          className="mb-16 flex flex-col-reverse items-center gap-8 md:flex-row"
+        >
+          <div className="flex-1">
+            <img
+              src="/img3.jpg"
+              alt="Nos Objectifs"
+              className="h-full w-full rounded-lg object-cover shadow-lg"
+            />
+          </div>
+          <div className="flex-1">
+            <div className="mb-4">
+              <FaTrophy className="text-5xl text-blue-600" />
+            </div>
+            <h2 className="mb-4 text-3xl font-bold text-gray-800">
+              Nos Objectifs
+            </h2>
+            <ul className="space-y-2 text-lg text-gray-600">
+              <li>• Renforcer les compétences numériques des jeunes</li>
+              <li>• Favoriser l'insertion socio-professionnelle</li>
+              <li>
+                • Encourager l'autonomisation par les métiers du numérique
+              </li>
+              <li>• Rendre les jeunes compétitifs à l'international</li>
+              <li>• Sensibiliser aux enjeux des NTIC</li>
+              <li>• Réduire la fracture numérique</li>
+            </ul>
+          </div>
+        </motion.div>
+
+        {/* Section Impact et Engagements */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+          className="mb-16 flex flex-col gap-8 md:flex-row"
+        >
+          <div className="flex-1">
+            <div className="mb-4">
+              <FaGlobeAfrica className="text-5xl text-blue-600" />
+            </div>
+            <h2 className="mb-4 text-3xl font-bold text-gray-800">
+              Notre Impact et Engagements
+            </h2>
+            <p className="text-lg leading-relaxed text-gray-600">
+              Depuis sa création, CENTIC a organisé de nombreuses initiatives
+              marquantes, telles que des programmes de formation en
+              informatique, des campagnes de sensibilisation, et des événements
+              visant à promouvoir l'innovation technologique. Grâce à des
+              partenariats stratégiques avec des institutions comme la
+              Délégation Régionale des Postes et Télécommunications et
+              l'Alliance Française de Maroua, CENTIC a pu étendre son influence
+              et renforcer son impact dans l'Extrême-Nord.
+            </p>
+          </div>
+          <div className="flex-1">
+            <img
+              src="/etudiante.jpg"
+              alt="Notre Impact"
+              className="h-full w-full rounded-lg object-cover shadow-lg"
+            />
+          </div>
+        </motion.div>
+
+        {/* Section Vision */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+          className="mb-16 flex flex-col-reverse items-center gap-8 md:flex-row"
+        >
+          <div className="flex-1">
+            <img
+              src="/gallerie/1.jpg"
+              alt="Notre Vision"
+              className="h-full w-full rounded-lg object-cover shadow-lg"
+            />
+          </div>
+          <div className="flex-1">
+            <div className="mb-4">
+              <FaBriefcase className="text-5xl text-blue-600" />
+            </div>
+            <h2 className="mb-4 text-3xl font-bold text-gray-800">
+              Notre Vision
+            </h2>
+            <p className="text-lg leading-relaxed text-gray-600">
+              Notre vision est de créer un écosystème numérique dynamique dans
+              la région du Septentrion, où chaque jeune, quelle que soit son
+              origine, a accès aux outils et aux compétences nécessaires pour
+              réussir dans l'économie numérique. Nous croyons en un avenir où la
+              technologie devient un levier d'autonomisation et de développement
+              durable pour les communautés locales.
+            </p>
+          </div>
+        </motion.div>
+
+        {/* Section Équipe */}
         <TeamSection />
 
-        {/* CTA Section */}
+        {/* Section CTA */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
           viewport={{ once: true }}
+          className="mt-12"
         >
-          <Box
-            sx={{
-              mt: 8,
-              p: { xs: 4, md: 6 },
-              borderRadius: 4,
-              background: `linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.secondary} 100%)`,
-              color: 'white',
-              textAlign: 'center',
-              position: 'relative',
-              overflow: 'hidden',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'url("/images/pattern.png")',
-                opacity: 0.1,
-                pointerEvents: 'none',
-              },
-            }}
-          >
-            <Box position="relative" zIndex={1}>
-              <FaBriefcase
-                style={{ fontSize: 60, marginBottom: '1rem', color: 'white' }}
-              />
-              <Typography
-                variant="h3"
-                component="h2"
-                gutterBottom
-                sx={{
-                  fontWeight: 800,
-                  mb: 2,
-                  fontSize: { xs: '2rem', md: '2.5rem' },
-                  color: 'white',
-                }}
-              >
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 p-6 text-center text-white md:p-8">
+            <div className="relative z-10 flex flex-col items-center">
+              <FaBriefcase className="mb-4 text-6xl text-white" />
+              <h2 className="mb-4 text-3xl font-extrabold text-white md:text-5xl">
                 Rejoignez Notre Mission
-              </Typography>
-              <Typography
-                variant="h6"
-                sx={{
-                  mb: 4,
-                  maxWidth: '800px',
-                  mx: 'auto',
-                  color: 'rgba(255, 255, 255, 0.9)',
-                  fontWeight: 400,
-                }}
-              >
+              </h2>
+              <p className="mx-auto mb-8 max-w-2xl text-lg font-normal text-white/90 md:text-xl">
                 Ensemble, construisons un avenir numérique inclusif pour la
                 jeunesse du Septentrion
-              </Typography>
+              </p>
 
-              <Box
-                sx={{
-                  display: 'flex',
-                  gap: 3,
-                  justifyContent: 'center',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <Button
-                  component={Link}
+              <div className="flex flex-wrap justify-center gap-4">
+                <Link
                   to="/contact"
-                  variant="contained"
-                  color="secondary"
-                  size="large"
-                  sx={{
-                    borderRadius: '50px',
-                    px: 4,
-                    py: 1.5,
-                    fontWeight: 700,
-                    textTransform: 'none',
-                    fontSize: '1.1rem',
-                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: '0 6px 24px rgba(0, 0, 0, 0.2)',
-                    },
-                    transition: 'all 0.3s ease',
-                  }}
+                  className="rounded-full bg-purple-600 px-6 py-2 text-lg font-bold text-white shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
                 >
                   Nous Contacter
-                </Button>
+                </Link>
 
-                <Button
-                  component={Link}
+                <Link
                   to="/devenir-benevole"
-                  variant="outlined"
-                  color="inherit"
-                  size="large"
-                  sx={{
-                    borderRadius: '50px',
-                    px: 4,
-                    py: 1.5,
-                    fontWeight: 700,
-                    textTransform: 'none',
-                    fontSize: '1.1rem',
-                    borderWidth: '2px',
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                      borderWidth: '2px',
-                    },
-                    transition: 'all 0.3s ease',
-                  }}
+                  className="rounded-full border-2 border-white px-6 py-2 text-lg font-bold text-white transition-all duration-300 hover:bg-white/10"
                 >
                   Devenir Bénévole
-                </Button>
-              </Box>
-            </Box>
-          </Box>
+                </Link>
+              </div>
+            </div>
+          </div>
         </motion.div>
       </div>
     </div>

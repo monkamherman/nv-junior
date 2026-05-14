@@ -1,4 +1,4 @@
-import { Prisma, PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
 
 const prisma = new PrismaClient();
@@ -16,19 +16,30 @@ interface AuthenticatedRequest extends Request {
   user?: AuthenticatedUser;
 }
 
-type FormationWithFormateur = Prisma.FormationGetPayload<{
-  include: {
-    formateur: {
-      select: {
-        id: true;
-        nom: true;
-        prenom: true;
-      };
-    };
+const formationInclude = {
+  formateurs: {
+    include: {
+      formateur: true,
+    },
+  },
+} as const;
+
+function serializeFormation<T extends { formateurs: Array<{ formateur: any }> }>(
+  formation: T,
+) {
+  return {
+    ...formation,
+    formateurs: formation.formateurs.map(({ formateur }) => ({
+      id: formateur.id,
+      nom: formateur.nom,
+      prenom: formateur.prenom,
+      email: formateur.email,
+      telephone: formateur.telephone,
+      qualificationProfessionnelle: formateur.qualificationProfessionnelle,
+      bio: formateur.bio,
+    })),
   };
-}> & {
-  dateInscription: string;
-};
+}
 
 export async function getFormations(
   req: Request,
@@ -36,17 +47,12 @@ export async function getFormations(
 ): Promise<void> {
   try {
     const formations = await prisma.formation.findMany({
-      include: {
-        formateur: {
-          select: {
-            id: true,
-            nom: true,
-            prenom: true,
-          },
-        },
+      include: formationInclude,
+      orderBy: {
+        dateDebut: "desc",
       },
     });
-    res.json(formations);
+    res.json(formations.map(serializeFormation));
   } catch (error: unknown) {
     console.error(error);
     const errorMessage =
@@ -66,15 +72,7 @@ export async function getFormationById(
   try {
     const formation = await prisma.formation.findUnique({
       where: { id },
-      include: {
-        formateur: {
-          select: {
-            id: true,
-            nom: true,
-            prenom: true,
-          },
-        },
-      },
+      include: formationInclude,
     });
 
     if (!formation) {
@@ -82,7 +80,7 @@ export async function getFormationById(
       return;
     }
 
-    res.json(formation);
+    res.json(serializeFormation(formation));
   } catch (error: unknown) {
     console.error(error);
     const errorMessage =
@@ -103,40 +101,28 @@ export async function getUserFormations(
       return res.status(401).json({ message: "Non autorisé." });
     }
 
-    // Récupérer les inscriptions de l'utilisateur avec un paiement validé
     const inscriptions = await prisma.inscription.findMany({
       where: {
         utilisateurId: req.user.id,
-        statut: "VALIDEE", // Uniquement les inscriptions validées
+        statut: "VALIDEE",
         paiement: {
-          statut: "VALIDE", // Uniquement les paiements validés
+          statut: "VALIDE",
         },
       },
       include: {
         formation: {
-          include: {
-            formateur: {
-              select: {
-                id: true,
-                nom: true,
-                prenom: true,
-              },
-            },
-          },
+          include: formationInclude,
         },
-        paiement: true, // Inclure les informations de paiement
+        paiement: true,
       },
     });
 
-    // Transformer les données pour correspondre au format attendu
-    const formations: FormationWithFormateur[] = inscriptions.map(
-      (inscription) => ({
-        ...inscription.formation,
-        dateInscription: inscription.dateInscription.toISOString(),
-        statutPaiement: inscription.paiement?.statut || "EN_ATTENTE",
-        montantPaiement: inscription.paiement?.montant || 0,
-      }),
-    );
+    const formations = inscriptions.map((inscription) => ({
+      ...serializeFormation(inscription.formation),
+      dateInscription: inscription.dateInscription.toISOString(),
+      statutPaiement: inscription.paiement?.statut || "EN_ATTENTE",
+      montantPaiement: inscription.paiement?.montant || 0,
+    }));
 
     res.json(formations);
   } catch (error: unknown) {
@@ -153,16 +139,27 @@ export async function getUserFormations(
 }
 
 export async function createFormation(req: Request, res: Response) {
-  console.log("=== NOUVELLE DEMANDE DE CRÉATION DE FORMATION ===");
-  console.log("Données reçues:", req.body);
+  const {
+    titre,
+    description,
+    prix,
+    dateDebut,
+    dateFin,
+    statut,
+    formateurIds,
+  } = req.body;
 
-  const { titre, description, prix, dateDebut, dateFin, statut } = req.body;
-
-  // Validation des champs requis
-  if (!titre || !description || prix === undefined || !dateDebut || !dateFin) {
-    console.error("Champs manquants dans la requête");
+  if (
+    !titre ||
+    !description ||
+    prix === undefined ||
+    !dateDebut ||
+    !dateFin ||
+    !Array.isArray(formateurIds) ||
+    formateurIds.length === 0
+  ) {
     return res.status(400).json({
-      message: "Tous les champs sont obligatoires",
+      message: "Tous les champs requis doivent être renseignés, y compris au moins un formateur.",
       errors: [
         !titre && { path: "titre", message: "Le titre est requis" },
         !description && {
@@ -175,20 +172,28 @@ export async function createFormation(req: Request, res: Response) {
           message: "La date de début est requise",
         },
         !dateFin && { path: "dateFin", message: "La date de fin est requise" },
+        (!Array.isArray(formateurIds) || formateurIds.length === 0) && {
+          path: "formateurIds",
+          message: "Sélectionnez au moins un formateur",
+        },
       ].filter(Boolean),
     });
   }
 
   try {
-    console.log("Tentative de création de la formation...");
+    const existingFormateurs = await prisma.formateur.findMany({
+      where: {
+        id: {
+          in: formateurIds,
+        },
+      },
+      select: { id: true },
+    });
 
-    // Vérifier si l'utilisateur est authentifié et a un ID valide
-    const userId = (req as AuthenticatedRequest).user?.id;
-    if (!userId) {
-      console.error("Aucun ID utilisateur trouvé dans la requête");
-      return res
-        .status(401)
-        .json({ message: "Non autorisé - Utilisateur non identifié" });
+    if (existingFormateurs.length !== formateurIds.length) {
+      return res.status(400).json({
+        message: "Un ou plusieurs formateurs sélectionnés sont introuvables.",
+      });
     }
 
     const newFormation = await prisma.formation.create({
@@ -199,20 +204,19 @@ export async function createFormation(req: Request, res: Response) {
         dateDebut: new Date(dateDebut),
         dateFin: new Date(dateFin),
         statut: statut || "BROUILLON",
-        formateurId: userId, // Utiliser l'ID de l'utilisateur connecté comme formateur
+        formateurs: {
+          create: formateurIds.map((formateurId: string) => ({
+            formateur: { connect: { id: formateurId } },
+          })),
+        },
       },
+      include: formationInclude,
     });
 
-    console.log("Formation créée avec succès:", newFormation);
-    res.status(201).json(newFormation);
+    res.status(201).json(serializeFormation(newFormation));
   } catch (error: unknown) {
     console.error("ERREUR lors de la création de la formation:", error);
-    console.error(
-      "Détails de l'erreur:",
-      error instanceof Error ? error.message : String(error),
-    );
 
-    // Gestion spécifique des erreurs Prisma
     if (error instanceof Error && "code" in error && error.code === "P2002") {
       return res.status(400).json({
         message: "Une formation avec ce titre existe déjà",
@@ -234,12 +238,43 @@ export async function createFormation(req: Request, res: Response) {
 
 export async function updateFormation(req: Request, res: Response) {
   const { id } = req.params;
-  const { titre, description, prix, dateDebut, dateFin, formateurId, statut } =
-    req.body;
+  const {
+    titre,
+    description,
+    prix,
+    dateDebut,
+    dateFin,
+    formateurIds,
+    statut,
+  } = req.body;
   try {
-    const formation = await prisma.formation.findUnique({ where: { id } });
+    const formation = await prisma.formation.findUnique({
+      where: { id },
+      include: formationInclude,
+    });
     if (!formation) {
       return res.status(404).json({ message: "Formation non trouvée." });
+    }
+
+    if (formateurIds !== undefined) {
+      if (!Array.isArray(formateurIds) || formateurIds.length === 0) {
+        return res.status(400).json({
+          message: "Sélectionnez au moins un formateur.",
+        });
+      }
+
+      const existingFormateurs = await prisma.formateur.findMany({
+        where: {
+          id: { in: formateurIds },
+        },
+        select: { id: true },
+      });
+
+      if (existingFormateurs.length !== formateurIds.length) {
+        return res.status(400).json({
+          message: "Un ou plusieurs formateurs sélectionnés sont introuvables.",
+        });
+      }
     }
 
     const updatedFormation = await prisma.formation.update({
@@ -251,12 +286,20 @@ export async function updateFormation(req: Request, res: Response) {
         prix: prix !== undefined ? Number(prix) : formation.prix,
         dateDebut: dateDebut ? new Date(dateDebut) : formation.dateDebut,
         dateFin: dateFin ? new Date(dateFin) : formation.dateFin,
-        formateurId:
-          formateurId !== undefined ? formateurId : formation.formateurId,
         statut: statut !== undefined ? statut : formation.statut,
+        formateurs:
+          formateurIds !== undefined
+            ? {
+                deleteMany: {},
+                create: formateurIds.map((formateurId: string) => ({
+                  formateur: { connect: { id: formateurId } },
+                })),
+              }
+            : undefined,
       },
+      include: formationInclude,
     });
-    res.json(updatedFormation);
+    res.json(serializeFormation(updatedFormation));
   } catch (error) {
     console.error("Erreur lors de la mise à jour de la formation:", error);
     res
@@ -273,23 +316,22 @@ export async function deleteFormation(req: Request, res: Response) {
       return res.status(404).json({ message: "Formation non trouvée." });
     }
 
-    // Supprimer les enregistrements liés dans l'ordre inverse des relations
-    // 1. Supprimer les attestations liées
     await prisma.attestation.deleteMany({
       where: { formationId: id },
     });
 
-    // 2. Supprimer les paiements liés
     await prisma.paiement.deleteMany({
       where: { formationId: id },
     });
 
-    // 3. Supprimer les inscriptions liées
     await prisma.inscription.deleteMany({
       where: { formationId: id },
     });
 
-    // 4. Supprimer la formation
+    await prisma.formationFormateur.deleteMany({
+      where: { formationId: id },
+    });
+
     await prisma.formation.delete({ where: { id } });
 
     res.json({ message: "Formation supprimée avec succès." });

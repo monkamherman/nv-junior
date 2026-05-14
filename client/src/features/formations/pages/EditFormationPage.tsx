@@ -14,7 +14,6 @@ function EditFormationPageContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  // Récupérer les données de la formation existante
   const {
     data: formation,
     isLoading,
@@ -65,22 +64,20 @@ function EditFormationPageContent() {
     return <div>Formation non trouvée</div>;
   }
 
-  // Préparer les valeurs par défaut pour le formulaire
   const defaultValues: Partial<FormationFormValues> = {
     titre: formation.titre,
     description: formation.description,
     prix: formation.prix,
-    dateDebut: formation.dateDebut.split('T')[0], // Format YYYY-MM-DD
+    dateDebut: formation.dateDebut.split('T')[0],
     dateFin: formation.dateFin.split('T')[0],
     statut: formation.statut,
+    formateurIds: formation.formateurs?.map((formateur: { id: string }) => formateur.id) || [],
   };
 
   const handleSubmit = async (data: FormationFormValues) => {
     try {
-      // Validation supplémentaire si nécessaire
       await updateFormation.mutateAsync(data);
     } catch (error) {
-      // Les erreurs sont gérées par useMutation
       console.error('Erreur lors de la soumission du formulaire:', error);
     }
   };

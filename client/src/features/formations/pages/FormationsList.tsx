@@ -345,7 +345,7 @@ function FormationsListContent() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {formation.formateur?.prenom} {formation.formateur?.nom}
+                      {formation.formateurs?.map((formateur) => `${formateur.prenom} ${formateur.nom}`).join(', ') || 'Non assigné'}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end space-x-2">

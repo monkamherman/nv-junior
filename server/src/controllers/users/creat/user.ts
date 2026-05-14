@@ -15,7 +15,6 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
       return res.status(401).json({ message: "Non autorisé." });
     }
 
-    // Récupérer l'utilisateur avec ses formations et attestations
     const user = await prisma.utilisateur.findUnique({
       where: { id: req.user.id },
       select: {
@@ -34,7 +33,6 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
       return res.status(404).json({ message: "Utilisateur non trouvé." });
     }
 
-    // Récupérer les formations de l'utilisateur (sans inclure la formation pour éviter les erreurs)
     const inscriptions = await prisma.inscription.findMany({
       where: {
         utilisateurId: req.user.id,
@@ -42,24 +40,20 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
       },
     });
 
-    // Récupérer les formations séparément pour éviter les erreurs de null
     const formationIds = inscriptions.map((i) => i.formationId).filter(Boolean);
     const formationsData = await prisma.formation.findMany({
       where: {
         id: { in: formationIds as string[] },
       },
       include: {
-        formateur: {
-          select: {
-            id: true,
-            nom: true,
-            prenom: true,
+        formateurs: {
+          include: {
+            formateur: true,
           },
         },
       },
     });
 
-    // Combiner les données
     const formations = formationsData.map((formation) => ({
       id: formation.id,
       titre: formation.titre,
@@ -69,16 +63,21 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
         (new Date(formation.dateFin).getTime() -
           new Date(formation.dateDebut).getTime()) /
           (1000 * 60 * 60 * 24)
-      ), // Durée en jours
+      ),
       statut:
         new Date() > new Date(formation.dateFin)
           ? ("TERMINÉ" as const)
           : new Date() >= new Date(formation.dateDebut)
             ? ("EN_COURS" as const)
             : ("NON_COMMENCÉ" as const),
+      formateurs: formation.formateurs.map(({ formateur }) => ({
+        id: formateur.id,
+        nom: formateur.nom,
+        prenom: formateur.prenom,
+        qualificationProfessionnelle: formateur.qualificationProfessionnelle,
+      })),
     }));
 
-    // Récupérer les attestations de l'utilisateur
     const attestations = await prisma.attestation.findMany({
       where: {
         utilisateurId: req.user.id,
@@ -92,7 +91,6 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
       },
     });
 
-    // Récupérer les paiements de l'utilisateur
     const paiements = await prisma.paiement.findMany({
       where: {
         utilisateurId: req.user.id,
@@ -109,7 +107,6 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
       },
     });
 
-    // Transformer les attestations
     const attestationsFormatted = attestations.map((attestation) => ({
       id: attestation.id,
       titre: `Attestation - ${attestation.inscription.formation.titre}`,
@@ -117,7 +114,6 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
       dateDelivrance: attestation.dateEmission,
     }));
 
-    // Transformer les paiements
     const paiementsFormatted = paiements.map((paiement) => ({
       id: paiement.id,
       reference: paiement.reference,
@@ -130,7 +126,6 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
       telephone: paiement.telephone,
     }));
 
-    // Combiner les données
     const profileData = {
       ...user,
       formations,
@@ -239,7 +234,6 @@ export async function updatePassword(req: AuthenticatedRequest, res: Response) {
       });
     }
 
-    // Récupérer l'utilisateur avec le mot de passe
     const user = await prisma.utilisateur.findUnique({
       where: { id: req.user.id },
       select: {
@@ -252,7 +246,6 @@ export async function updatePassword(req: AuthenticatedRequest, res: Response) {
       return res.status(404).json({ message: "Utilisateur non trouvé." });
     }
 
-    // Vérifier le mot de passe actuel
     const isCurrentPasswordValid = await bcrypt.compare(
       currentPassword,
       user.motDePasse
@@ -263,10 +256,8 @@ export async function updatePassword(req: AuthenticatedRequest, res: Response) {
         .json({ message: "Le mot de passe actuel est incorrect." });
     }
 
-    // Hasher le nouveau mot de passe
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
 
-    // Mettre à jour le mot de passe
     await prisma.utilisateur.update({
       where: { id: user.id },
       data: { motDePasse: hashedNewPassword },

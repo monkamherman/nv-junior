@@ -3,12 +3,45 @@ import { Request, Response } from "express";
 
 const prisma = new PrismaClient();
 
-// Créer une nouvelle formation
+const formationInclude = {
+  formateurs: {
+    include: {
+      formateur: true,
+    },
+  },
+  _count: {
+    select: {
+      inscriptions: true,
+    },
+  },
+} as const;
+
+function serializeFormation(formation: any) {
+  return {
+    ...formation,
+    formateurs: formation.formateurs.map(({ formateur }: any) => ({
+      id: formateur.id,
+      nom: formateur.nom,
+      prenom: formateur.prenom,
+      email: formateur.email,
+      telephone: formateur.telephone,
+      qualificationProfessionnelle: formateur.qualificationProfessionnelle,
+      bio: formateur.bio,
+    })),
+  };
+}
+
 export const createFormation = async (req: Request, res: Response) => {
-  const { titre, description, prix, dateDebut, dateFin, formateurId } =
+  const { titre, description, prix, dateDebut, dateFin, formateurIds } =
     req.body;
 
   try {
+    if (!Array.isArray(formateurIds) || formateurIds.length === 0) {
+      return res.status(400).json({
+        error: "Sélectionnez au moins un formateur",
+      });
+    }
+
     const formation = await prisma.formation.create({
       data: {
         titre,
@@ -16,11 +49,16 @@ export const createFormation = async (req: Request, res: Response) => {
         prix: parseFloat(prix),
         dateDebut: new Date(dateDebut),
         dateFin: new Date(dateFin),
-        formateur: formateurId ? { connect: { id: formateurId } } : undefined,
+        formateurs: {
+          create: formateurIds.map((formateurId: string) => ({
+            formateur: { connect: { id: formateurId } },
+          })),
+        },
       },
+      include: formationInclude,
     });
 
-    res.status(201).json(formation);
+    res.status(201).json(serializeFormation(formation));
   } catch (error) {
     res
       .status(500)
@@ -28,31 +66,16 @@ export const createFormation = async (req: Request, res: Response) => {
   }
 };
 
-// Récupérer toutes les formations
 export const getAllFormations = async (req: Request, res: Response) => {
   try {
     const formations = await prisma.formation.findMany({
-      include: {
-        formateur: {
-          select: {
-            id: true,
-            nom: true,
-            prenom: true,
-            email: true,
-          },
-        },
-        _count: {
-          select: {
-            inscriptions: true,
-          },
-        },
-      },
+      include: formationInclude,
       orderBy: {
         dateDebut: "desc",
       },
     });
 
-    res.json(formations);
+    res.json(formations.map(serializeFormation));
   } catch (error) {
     res
       .status(500)
@@ -60,7 +83,6 @@ export const getAllFormations = async (req: Request, res: Response) => {
   }
 };
 
-// Obtenir une formation par ID
 export const getFormationById = async (req: Request, res: Response) => {
   const { id } = req.params;
 
@@ -68,12 +90,9 @@ export const getFormationById = async (req: Request, res: Response) => {
     const formation = await prisma.formation.findUnique({
       where: { id },
       include: {
-        formateur: {
-          select: {
-            id: true,
-            nom: true,
-            prenom: true,
-            email: true,
+        formateurs: {
+          include: {
+            formateur: true,
           },
         },
         inscriptions: {
@@ -95,7 +114,7 @@ export const getFormationById = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Formation non trouvée" });
     }
 
-    res.json(formation);
+    res.json(serializeFormation(formation));
   } catch (error) {
     res
       .status(500)
@@ -103,10 +122,9 @@ export const getFormationById = async (req: Request, res: Response) => {
   }
 };
 
-// Mettre à jour une formation
 export const updateFormation = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { titre, description, prix, dateDebut, dateFin, statut, formateurId } =
+  const { titre, description, prix, dateDebut, dateFin, statut, formateurIds } =
     req.body;
 
   try {
@@ -119,11 +137,20 @@ export const updateFormation = async (req: Request, res: Response) => {
         dateDebut: dateDebut ? new Date(dateDebut) : undefined,
         dateFin: dateFin ? new Date(dateFin) : undefined,
         statut,
-        formateur: formateurId ? { connect: { id: formateurId } } : undefined,
+        formateurs:
+          formateurIds !== undefined
+            ? {
+                deleteMany: {},
+                create: formateurIds.map((formateurId: string) => ({
+                  formateur: { connect: { id: formateurId } },
+                })),
+              }
+            : undefined,
       },
+      include: formationInclude,
     });
 
-    res.json(updatedFormation);
+    res.json(serializeFormation(updatedFormation));
   } catch (error) {
     res
       .status(500)
@@ -131,11 +158,14 @@ export const updateFormation = async (req: Request, res: Response) => {
   }
 };
 
-// Supprimer une formation
 export const deleteFormation = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
+    await prisma.formationFormateur.deleteMany({
+      where: { formationId: id },
+    });
+
     await prisma.formation.delete({
       where: { id },
     });
