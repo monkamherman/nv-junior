@@ -1,8 +1,8 @@
 import { Router } from "express";
 import path from "path";
 import {
-  genererPdfAttestation,
   genererMonAttestation,
+  genererPdfAttestation,
   getMesAttestations,
   telechargerMonAttestation,
   verifierEligibiliteAttestation,
@@ -16,7 +16,15 @@ const router = Router();
 // Route publique pour la simulation d'attestation
 router.post("/generate", generateAttestation);
 
-// Route pour servir les fichiers PDF d'attestation
+// Appliquer l'authentification aux autres routes
+router.use(authMiddleware);
+
+// Routes spécifiques avant les routes génériques pour éviter les conflits
+router.get("/:id/generer-pdf", genererPdfAttestation);
+router.get("/:id/telecharger", telechargerMonAttestation);
+router.get("/telecharger/:id", telechargerMonAttestation);
+
+// Route pour servir les fichiers PDF d'attestation (doit être après les routes spécifiques)
 router.get("/attestations/:filename", (req, res) => {
   const filename = req.params.filename;
   const filePath = path.join(__dirname, "../../public/attestations", filename);
@@ -26,9 +34,6 @@ router.get("/attestations/:filename", (req, res) => {
     }
   });
 });
-
-// Appliquer l'authentification aux autres routes
-router.use(authMiddleware);
 
 /**
  * @route GET /api/attestations
@@ -96,7 +101,7 @@ router.get("/:id", async (req, res) => {
  */
 router.get(
   "/verifier-eligibilite/:formationId",
-  verifierEligibiliteAttestation
+  verifierEligibiliteAttestation,
 );
 
 /**
@@ -105,24 +110,13 @@ router.get(
  * @access Privé
  */
 router.post("/generer", genererMonAttestation);
-router.post("/generer/:formationId", (req, res, next) => {
-  req.body.formationId = req.params.formationId;
-  next();
-}, genererMonAttestation);
-
-/**
- * @route GET /api/attestations/:id/telecharger
- * @desc Télécharger une attestation
- * @access Privé
- */
-router.get("/:id/telecharger", telechargerMonAttestation);
-router.get("/telecharger/:id", telechargerMonAttestation);
-
-/**
- * @route GET /api/attestations/:id/generer-pdf
- * @desc Générer et télécharger un PDF d'attestation à la volée
- * @access Privé
- */
-router.get("/:id/generer-pdf", genererPdfAttestation);
+router.post(
+  "/generer/:formationId",
+  (req, res, next) => {
+    req.body.formationId = req.params.formationId;
+    next();
+  },
+  genererMonAttestation,
+);
 
 export default router;

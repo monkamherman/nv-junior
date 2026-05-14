@@ -30,17 +30,17 @@ interface InscriptionWithRelations
 }
 
 export function generateCertificate(
-  inscription: InscriptionWithRelations
+  inscription: InscriptionWithRelations,
 ): Promise<CertificateData> {
   return new Promise((resolve, reject) => {
     try {
       const { utilisateur, formation } = inscription;
 
-      // Créer un nouveau document PDF
+      // Créer un nouveau document PDF avec des marges réduites
       const doc = new PDFDocument({
         size: "A4",
         layout: "landscape",
-        margin: 60,
+        margin: 40,
       });
 
       // Générer un nom de fichier unique
@@ -65,87 +65,97 @@ export function generateCertificate(
         .stop(1, "#e0f2fe");
       doc.rect(0, 0, doc.page.width, doc.page.height).fill(gradient);
 
-      // Ajouter une bordure décorative
+      // Ajouter une bordure décorative plus fine
       doc
-        .rect(30, 30, doc.page.width - 60, doc.page.height - 60)
+        .rect(20, 20, doc.page.width - 40, doc.page.height - 40)
         .lineWidth(2)
         .strokeColor("#0284c7")
         .stroke();
 
       doc
-        .rect(40, 40, doc.page.width - 80, doc.page.height - 80)
+        .rect(25, 25, doc.page.width - 50, doc.page.height - 50)
         .lineWidth(1)
         .strokeColor("#0ea5e9")
         .stroke();
 
-      // En-tête avec logo et titre
+      // En-tête avec titre réduit
       doc
         .fill("#0c4a6e")
-        .fontSize(32)
+        .fontSize(24)
         .font("Helvetica-Bold")
         .text("ATTESTATION DE FORMATION", { align: "center", underline: true })
-        .moveDown(0.5);
+        .moveDown(0.3);
 
-      // Nom de la structure
+      // Nom de la structure avec police réduite
       doc
-        .fontSize(20)
+        .fontSize(14)
         .font("Helvetica-Bold")
         .fill("#0284c7")
         .text("CENTIC - CENTRE D'EXCELLENCE NUMÉRIQUE ET DE COMMUNICATION", {
           align: "center",
         })
-        .moveDown(1);
+        .moveDown(0.5);
 
       // Sous-titre
       doc
-        .fontSize(14)
+        .fontSize(11)
         .font("Helvetica")
         .fill("#475569")
         .text("Certificat de réussite", { align: "center" })
-        .moveDown(2);
+        .moveDown(1);
 
-      // Corps de l'attestation
+      // Corps de l'attestation avec police réduite
       doc
-        .fontSize(16)
+        .fontSize(12)
         .font("Helvetica")
         .fill("#334155")
         .text("Le soussigné, Directeur des études du CENTIC,", {
           align: "right",
         })
-        .moveDown(1)
+        .moveDown(0.5)
         .text("Certifie par la présente que :", { align: "center" })
-        .moveDown(1);
+        .moveDown(0.5);
 
-      // Nom de l'étudiant en évidence
+      // Nom de l'étudiant en évidence avec police réduite
       doc
-        .fontSize(28)
+        .fontSize(20)
         .font("Helvetica-Bold")
         .fill("#0f172a")
         .text(
           `${utilisateur.prenom.toUpperCase()} ${utilisateur.nom.toUpperCase()}`,
-          { align: "center" }
+          { align: "center" },
         )
-        .moveDown(1);
+        .moveDown(0.5);
 
-      // Détails de la formation
+      // Détails de la formation avec police réduite
       doc
-        .fontSize(16)
+        .fontSize(11)
         .font("Helvetica")
         .fill("#334155")
         .text(
           "a suivi avec succès et accompli toutes les exigences de la formation intitulée :",
-          { align: "center" }
+          { align: "center" },
         )
-        .moveDown(1);
+        .moveDown(0.5);
 
       doc
-        .fontSize(22)
+        .fontSize(16)
         .font("Helvetica-Bold")
         .fill("#0284c7")
         .text(`« ${formation.titre.toUpperCase()} »`, { align: "center" })
-        .moveDown(1);
+        .moveDown(0.3);
 
-      // Période et durée
+      // Description de la formation
+      if (formation.description) {
+        doc
+          .fontSize(9)
+          .font("Helvetica-Oblique")
+          .fill("#64748b")
+          .text(formation.description, { align: "center" })
+          .moveDown(0.5);
+      }
+
+      // Période et durée avec police réduite
       const dateDebut = format(new Date(formation.dateDebut), "dd MMMM yyyy", {
         locale: fr,
       });
@@ -155,100 +165,91 @@ export function generateCertificate(
       const duree = Math.ceil(
         (new Date(formation.dateFin).getTime() -
           new Date(formation.dateDebut).getTime()) /
-          (1000 * 60 * 60 * 24)
+          (1000 * 60 * 60 * 24),
       );
 
       doc
-        .fontSize(16)
+        .fontSize(11)
         .font("Helvetica")
         .fill("#334155")
         .text(`s'étant déroulée du ${dateDebut} au ${dateFin}`, {
           align: "center",
         })
-        .moveDown(0.5)
+        .moveDown(0.3)
         .text(`soit une durée de ${duree} jours`, { align: "center" })
-        .moveDown(2);
+        .moveDown(1);
 
-      // Compétences acquises (placeholder)
+      // Compétences acquises simplifiées
       doc
-        .fontSize(14)
+        .fontSize(10)
         .font("Helvetica-Oblique")
         .fill("#64748b")
         .text(
-          "Cette formation a permis au participant d'acquérir les compétences et connaissances",
-          { align: "center" }
+          "Cette formation a permis au participant d'acquérir les compétences nécessaires",
+          { align: "center" },
         )
-        .text("nécessaires à la maîtrise des concepts enseignés.", {
-          align: "center",
-        })
-        .moveDown(2);
+        .moveDown(1);
 
       // Mentions officielles
       doc
-        .fontSize(12)
+        .fontSize(10)
         .font("Helvetica")
         .fill("#475569")
         .text("Fait pour servir et valoir ce que de droit.", {
           align: "center",
         })
-        .moveDown(2);
+        .moveDown(1);
 
       // Signature et date
       const dateEmission = format(new Date(), "dd MMMM yyyy", { locale: fr });
       doc
-        .fontSize(14)
+        .fontSize(10)
         .font("Helvetica")
         .fill("#334155")
-        .text(`Fait à Douala, Cameroun, le ${dateEmission}`, { align: "right" })
-        .moveDown(2);
+        .text(`Fait à Maroua, le ${dateEmission}`, { align: "right" })
+        .moveDown(1);
 
       // Zone de signature
       doc
-        .fontSize(14)
+        .fontSize(10)
         .text("Le Directeur des études du CENTIC", { align: "right" })
-        .moveDown(0.5)
+        .moveDown(0.3)
         .text("_________________________", { align: "right" })
-        .moveDown(0.5)
-        .fontSize(12)
+        .moveDown(0.3)
+        .fontSize(9)
         .text("FALANG MOUYEBE Emmanuel", { align: "right" })
         .font("Helvetica-Oblique")
         .text("Directeur Académique", { align: "right" });
 
-      // Ajouter un sceau/watermark
+      // Ajouter un sceau/watermark réduit
       doc.save();
       doc.translate(doc.page.width / 2, doc.page.height / 2);
       doc.rotate(-45);
       doc
-        .fontSize(48)
+        .fontSize(36)
         .font("Helvetica-Bold")
-        .fillOpacity(0.1)
+        .fillOpacity(0.08)
         .fill("#0284c7")
         .text("CENTIC - CERTIFIÉ", { align: "center" });
       doc.restore();
 
-      // Pied de page
-      doc.fontSize(10);
+      // Pied de page simplifié
+      doc.fontSize(8);
       doc.fill("#64748b");
-      const footerY = doc.page.height - 40;
+      const footerY = doc.page.height - 25;
       doc.text(
         "CENTIC - CENTRE D'EXCELLENCE NUMÉRIQUE ET DE COMMUNICATION",
         50,
         footerY,
-        { align: "center" }
+        { align: "center" },
       );
-      doc.text(
-        "Agréé par l'État du Cameroun - N° d'agrée: 1234567890",
-        50,
-        footerY + 15,
-        { align: "center" }
-      );
-      doc.text("Douala, Cameroun - www.centic.cm", 50, footerY + 30, {
+      doc.text("Maroua, Cameroun - www.centic.cm", 50, footerY + 12, {
         align: "center",
       });
 
       // Numéro de l'attestation
       const numeroAttestation = `ATT-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-      doc.text(`Numéro: ${numeroAttestation}`, doc.page.width - 50, footerY, {
+      doc.text(`N°: ${numeroAttestation}`, doc.page.width - 50, footerY, {
         align: "right",
       });
 
@@ -272,7 +273,7 @@ export function generateCertificate(
 // Vérifier si un utilisateur a le droit de télécharger une attestation
 export async function canDownloadCertificate(
   userId: string,
-  certificateId: string
+  certificateId: string,
 ): Promise<boolean> {
   try {
     const attestation = await prisma.attestation.findUnique({
@@ -300,7 +301,7 @@ export async function canDownloadCertificate(
   } catch (error) {
     console.error(
       "Erreur lors de la vérification des droits de téléchargement:",
-      error
+      error,
     );
     return false;
   }

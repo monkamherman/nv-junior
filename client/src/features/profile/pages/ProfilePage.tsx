@@ -52,10 +52,9 @@ export function ProfilePage() {
 
   // Fonction de téléchargement d'attestation
   const handleDownloadAttestation = async (attestationId: string) => {
-    console.log(
-      "Génération et téléchargement de l'attestation:",
-      attestationId
-    );
+    console.log('=== DÉBUT DU PROCESSUS DE TÉLÉCHARGEMENT (FRONTEND) ===');
+    console.log("1. ID de l'attestation:", attestationId);
+
     const loadingToast = toast({
       title: 'Génération',
       description: 'Génération du certificat en cours...',
@@ -63,28 +62,47 @@ export function ProfilePage() {
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:10000';
-      const token = localStorage.getItem('token');
+      console.log("2. URL de l'API:", apiUrl);
 
-      // Appeler l'API pour générer et télécharger le PDF à la volée
-      const response = await fetch(
-        `${apiUrl}/api/attestations/${attestationId}/generer-pdf`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
+      const token = localStorage.getItem('token');
+      console.log(
+        "3. Token d'authentification:",
+        token ? 'Présent (longueur: ' + token.length + ')' : 'ABSENT'
       );
 
+      const fullUrl = `${apiUrl}/api/attestations/${attestationId}/generer-pdf`;
+      console.log('4. URL complète de la requête:', fullUrl);
+
+      // Appeler l'API pour générer et télécharger le PDF à la volée
+      console.log('5. Envoi de la requête GET...');
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('6. Réponse reçue:');
+      console.log('   - Status:', response.status);
+      console.log('   - Status Text:', response.statusText);
+      console.log('   - Content-Type:', response.headers.get('Content-Type'));
+
       if (!response.ok) {
+        console.log('❌ ERREUR: Réponse non OK');
+        const errorText = await response.text();
+        console.log("   - Corps de l'erreur:", errorText);
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
 
       // Récupérer le PDF généré
+      console.log('7. Récupération du blob PDF...');
       const blob = await response.blob();
+      console.log('   - Type du blob:', blob.type);
+      console.log('   - Taille du blob:', blob.size, 'octets');
 
       // Créer un lien de téléchargement
+      console.log('8. Création du lien de téléchargement...');
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -94,6 +112,9 @@ export function ProfilePage() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
+      console.log('✅ TÉLÉCHARGEMENT TERMINÉ AVEC SUCCÈS');
+      console.log('=== FIN DU PROCESSUS (FRONTEND) ===');
+
       loadingToast.update({
         id: loadingToast.id,
         title: 'Succès',
@@ -101,7 +122,17 @@ export function ProfilePage() {
         variant: 'success',
       });
     } catch (error) {
-      console.error('Erreur de génération/téléchargement:', error);
+      console.error('❌ ERREUR lors de la génération/téléchargement:', error);
+      console.error(
+        '   - Message:',
+        error instanceof Error ? error.message : String(error)
+      );
+      console.error(
+        '   - Stack:',
+        error instanceof Error ? error.stack : 'N/A'
+      );
+      console.log('=== FIN DU PROCESSUS (FRONTEND) - ÉCHEC ===');
+
       loadingToast.update({
         id: loadingToast.id,
         title: 'Erreur',

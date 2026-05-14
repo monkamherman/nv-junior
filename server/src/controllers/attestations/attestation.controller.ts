@@ -117,7 +117,8 @@ export const verifierEligibiliteAttestation = async (
           eligible: false,
           canMakePayment: false,
           canGenerateAttestation: false,
-          reason: "Le paiement est complet, mais l'attestation ne sera disponible qu'à la fin de la formation.",
+          reason:
+            "Le paiement est complet, mais l'attestation ne sera disponible qu'à la fin de la formation.",
           paymentStatus,
           inscription: inscription
             ? {
@@ -132,7 +133,8 @@ export const verifierEligibiliteAttestation = async (
         eligible: true,
         canMakePayment: false,
         canGenerateAttestation: true,
-        reason: "Paiement complet effectué. Vous pouvez maintenant générer votre attestation.",
+        reason:
+          "Paiement complet effectué. Vous pouvez maintenant générer votre attestation.",
         paymentStatus,
         inscription: inscription
           ? {
@@ -423,7 +425,9 @@ export const telechargerMonAttestation = async (
     const absolutePath = path.join(__dirname, "../../public", relativePath);
 
     if (!isPdfFile(absolutePath)) {
-      const certificateData = await generateCertificate(attestation.inscription);
+      const certificateData = await generateCertificate(
+        attestation.inscription,
+      );
       const regeneratedPath = path.join(
         __dirname,
         "../../public",
@@ -464,12 +468,19 @@ export const telechargerMonAttestation = async (
  * Générer et télécharger un PDF d'attestation à la volée
  */
 export const genererPdfAttestation = async (req: Request, res: Response) => {
+  console.log("=== DÉBUT DU PROCESSUS DE GÉNÉRATION PDF ===");
+  console.log("1. Vérification de l'authentification");
+
   try {
     if (!req.user) {
+      console.log("❌ ERREUR: Utilisateur non authentifié");
       return sendError(res, 401, "AUTH_REQUIRED", "Non autorisé");
     }
 
+    console.log("✅ Utilisateur authentifié:", req.user.id, req.user.email);
+
     const { id } = req.params;
+    console.log("2. Récupération de l'attestation avec ID:", id);
 
     const attestation = await prisma.attestation.findUnique({
       where: { id },
@@ -484,6 +495,7 @@ export const genererPdfAttestation = async (req: Request, res: Response) => {
     });
 
     if (!attestation) {
+      console.log("❌ ERREUR: Attestation non trouvée");
       return sendError(
         res,
         404,
@@ -492,7 +504,16 @@ export const genererPdfAttestation = async (req: Request, res: Response) => {
       );
     }
 
+    console.log("✅ Attestation trouvée:", attestation.numero);
+    console.log("   - URL PDF stockée:", attestation.urlPdf);
+    console.log(
+      "   - Propriétaire:",
+      attestation.inscription.utilisateur.email,
+    );
+    console.log("   - Formation:", attestation.inscription.formation.titre);
+
     if (attestation.inscription.utilisateurId !== req.user.id) {
+      console.log("❌ ERREUR: Utilisateur non autorisé");
       return sendError(
         res,
         403,
@@ -501,12 +522,17 @@ export const genererPdfAttestation = async (req: Request, res: Response) => {
       );
     }
 
+    console.log("3. Vérification du statut de paiement");
     const paymentStatus = await getPaymentProgress(
       req.user.id,
       attestation.formationId,
     );
 
+    console.log("   - Statut de paiement:", paymentStatus);
+    console.log("   - Paiement complet:", paymentStatus?.isFullyPaid);
+
     if (!paymentStatus?.isFullyPaid) {
+      console.log("❌ ERREUR: Paiement incomplet");
       return sendError(
         res,
         400,
@@ -516,7 +542,10 @@ export const genererPdfAttestation = async (req: Request, res: Response) => {
       );
     }
 
+    console.log("4. Génération du certificat PDF");
     const certificateData = await generateCertificate(attestation.inscription);
+
+    console.log("✅ Certificat généré:", certificateData.url);
 
     await prisma.attestation.update({
       where: { id },
@@ -526,6 +555,7 @@ export const genererPdfAttestation = async (req: Request, res: Response) => {
       },
     });
 
+    console.log("5. Configuration des headers HTTP");
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
@@ -533,25 +563,36 @@ export const genererPdfAttestation = async (req: Request, res: Response) => {
     );
 
     if (certificateData.url) {
-      const filePath = path.join(
-        __dirname,
-        "../../public",
-        certificateData.url.replace("/public", ""),
-      );
+      // Nettoyer l'URL pour obtenir le chemin relatif correct
+      const relativePath = certificateData.url.startsWith("/")
+        ? certificateData.url.substring(1)
+        : certificateData.url;
+      // Corriger le chemin : remonter de src/controllers/attestations/ à la racine, puis aller dans public/
+      const filePath = path.join(__dirname, "../../../public", relativePath);
+
+      console.log("6. Vérification du fichier PDF");
+      console.log("   - Chemin du fichier:", filePath);
+      console.log("   - Le fichier existe:", fs.existsSync(filePath));
 
       if (fs.existsSync(filePath)) {
+        console.log("✅ Envoi du fichier PDF au client");
         const fileStream = fs.createReadStream(filePath);
         fileStream.pipe(res);
+        fileStream.on("end", () => {
+          console.log("=== FIN DU PROCESSUS - SUCCÈS ===");
+        });
       } else {
+        console.log("❌ ERREUR: Fichier PDF non trouvé");
         return res.status(404).json({ message: "Fichier PDF non trouvé" });
       }
     } else {
+      console.log("❌ ERREUR: URL du certificat non disponible");
       return res
         .status(500)
         .json({ message: "Format de certificat non supporté" });
     }
   } catch (error) {
-    console.error("Erreur lors de la génération du PDF:", error);
+    console.error("❌ ERREUR lors de la génération du PDF:", error);
     const errorMessage =
       error instanceof Error ? error.message : "Erreur inconnue";
     return sendError(
